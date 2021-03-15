@@ -1,0 +1,67 @@
+we can take advantage of R's built in http server. see src/modules/internet/Rhttpd.c
+
+this server is started with tools::startDynamicHelp
+
+by default this will handle all requests through tools:::httpd
+
+however we can define custom handlers and assign them to the
+tools:::.httpd.handlers.env environment and in this way make them
+available to R's http server
+
+if the url path begins with /custom/<name>/, R will lookup the
+custom handler given by <name> in the .httpd.handlers.env
+and it will evaluate it (with the request data) in the tools namespace.
+note that <name> must be less than 64 characters long. of course it must
+also be a closure (function).
+
+tools:::httpd provides a reference implementation for how to write a
+custom handler
+
+
+each handler has the signature
+    function(path, query, body, headers)
+
+path is the url path
+
+query will be:
+    - a named character vector representing the query string. the names will
+      be the query parameters and the items will be the values.
+body will be either:
+    - a NULL
+    - a named character vector representing the query string (in the event
+      that the body is a url-encoded form)
+    - a RAWSXP with the body content, possibly with the attribute "content-type"
+headers will be either:
+    - a NULL
+    - a RAWSXP with the header content
+
+tools:::httpd only uses path and query args
+
+
+
+
+implement a handler db.httpd that works like wapp
+in other words, db.httpd does some introspection
+on the path url to identify the the database name
+and the url path head. it then dispatches to
+a custom handler based on that head name, passing that
+custom handler the database connection, the query params,
+body, and header. each handler responds, db.httpd receives
+the response and transforms it into the response expected
+by R's http server. so would need to implement some standard
+rules about how to respond. if there's no handler for the
+head name it will error. we'll know about handlers and where
+they are located because of the Rdb_help table in the database
+
+
+db.open should attach the functions that implement the help
+system as attributes to db.http. after they are attached
+it should then assign db.http into the .httpd.handlers.env
+environment under the name of the database file being opened.
+
+
+
+
+
+
+

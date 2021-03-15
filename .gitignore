@@ -1,0 +1,5 @@
+.DS_Store
+*.tar.gz
+Rdb.Rcheck
+src/*.o
+src/*.so
