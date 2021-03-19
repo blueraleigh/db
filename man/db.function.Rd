@@ -34,8 +34,7 @@ db = db.open()
 db.function(db, "multiply", `*`)
 db.eval(db, "CREATE TABLE t(a REAL, b REAL)")
 db.eval(db, "INSERT INTO t VALUES (?,?)", matrix(rnorm(200), 100, 2))
-cursor = db.eval(db, "SELECT multiply(a, b) FROM t")
-db.fetchall(cursor, TRUE)
+db.eval(db, "SELECT multiply(a, b) FROM t", df=TRUE)
 db.function(db, "multiply", NULL)
 \dontrun{
 db.eval(db, "SELECT multiply(a, b) FROM t") # no such function: multiply

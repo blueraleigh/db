@@ -2,7 +2,7 @@
 % Please edit documentation in R/db-info.R
 \name{db.exists}
 \alias{db.exists}
-\title{List the tables in a database}
+\title{Check for the existence of a database table, view, or index}
 \usage{
 db.exists(db, name)
 }
@@ -15,5 +15,5 @@ db.exists(db, name)
 \code{TRUE} if the item exists. Otherwise \code{FALSE}.
 }
 \description{
-List the tables in a database
+Check for the existence of a database table, view, or index
 }

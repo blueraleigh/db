@@ -34,7 +34,7 @@ via ...
 db = db.open()
 db.eval(db, "CREATE TABLE t(a REAL, b REAL)")
 db.eval(db, "INSERT INTO t VALUES(?,?)", matrix(runif(200), 100, 2))
-db.lapply(db, "SELECT * FROM t", list(list()), function(r) sum(unlist(r)))
+db.lapply(db, "SELECT * FROM t", FUN=function(r) sum(unlist(r)))
 }
 \seealso{
 \code{\link{db.eval}}

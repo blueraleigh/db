@@ -19,7 +19,7 @@ Update the content of a SQLite archive
 }
 \details{
 This will update the sqlar table in the database to reflect
-any changes made to the files in under \code{path} (including file
+any changes made to the files under \code{path} (including file
 additions and deletions and changed file permissions).
 }
 \note{

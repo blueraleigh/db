@@ -406,7 +406,7 @@ setMethod(
 #' @return A function that can be used to register the virtual table
 #' module with a database connection.
 #' @export
-new.virtualtable = function(name, methods, env=new.env()) {
+db.virtualtable = function(name, methods, env=new.env()) {
 
     construct_module = function(db) {
         v = new("virtualtable", database=db, name=name, env=env)

@@ -2,9 +2,9 @@
 % Please edit documentation in R/db-eval.R
 \name{db.fetch}
 \alias{db.fetch}
-\title{Retrieve a row from the result set of a query}
+\title{Retrieve the rows from the result set of a query}
 \usage{
-db.fetch(cur, df = FALSE)
+db.fetch(cur, df)
 }
 \arguments{
 \item{cur}{The cursor returned by \code{db.eval}. An S4 object of class
@@ -13,9 +13,15 @@ db.fetch(cur, df = FALSE)
 \item{df}{A boolean. Should the result be returned as a data.frame?}
 }
 \value{
-A named list (df=FALSE) or data.frame (df=TRUE) containing a
-row from the result set.
+A matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
+from the result set. If \code{df=FALSE} subsets of the matrix will
+return lists rather than atomic vectors.
 }
 \description{
-Retrieve a row from the result set of a query
+This is an internal function and not meant to be called outside
+the db package
+}
+\note{
+The cursor is invalidated afterwards. Do not attempt to use it
+again.
 }

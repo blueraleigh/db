@@ -4,8 +4,11 @@
 #include "convert.h"
 
 
-void db_finalize_stmt(SEXP Cur)
+static void db_finalize_stmt(SEXP Cur)
 {
+    #ifndef NDEBUG
+        Rprintf("running pstmt finalizer\n");
+    #endif
     sqlite3_stmt *stmt = (sqlite3_stmt *)R_ExternalPtrAddr(Cur);
     sqlite3_finalize(stmt);
     R_ClearExternalPtr(Cur);
@@ -33,7 +36,7 @@ static SEXP process_row(sqlite3_stmt *stmt)
 }
 
 
-SEXP db_eval(SEXP Db, SEXP Stmt, SEXP params)
+SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
 {
     int i = 0;
     int j;
@@ -71,17 +74,17 @@ SEXP db_eval(SEXP Db, SEXP Stmt, SEXP params)
         sqlite3_clear_bindings(pStmt);
     } while (++i < n);
 
+    sqlite3_finalize(pStmt);
     return R_NilValue;
 
     SEXP exptr;
     cursor:
         exptr = PROTECT(R_MakeExternalPtr(pStmt, R_NilValue, R_NilValue));
-        R_RegisterCFinalizerEx(exptr, db_finalize_stmt, TRUE);
         UNPROTECT(1);
         return exptr;
 }
 
-
+/*
 SEXP db_fetch(SEXP Cur, SEXP Db)
 {
     int rc;
@@ -99,9 +102,9 @@ SEXP db_fetch(SEXP Cur, SEXP Db)
         error(sqlite3_errmsg(db));
     return R_NilValue;
 }
+*/
 
-
-SEXP db_fetchall(SEXP Cur, SEXP Db, SEXP AsDf)
+SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
 {
     int i;
     int j;
@@ -143,12 +146,13 @@ SEXP db_fetchall(SEXP Cur, SEXP Db, SEXP AsDf)
         } while ((rc = sqlite3_step(pStmt)) == SQLITE_ROW);
     }
 
+    db_finalize_stmt(Cur);
+
     if (rc != SQLITE_DONE)
     {
         UNPROTECT(nprotect);
         error(sqlite3_errmsg(db));
     }
-    sqlite3_reset(pStmt);
 
     if (nelem)
     {
@@ -267,12 +271,13 @@ SEXP db_lapply(SEXP Db, SEXP Cur, SEXP fun, SEXP arglist)
         ++nelem;
     }
 
+    db_finalize_stmt(Cur);
+
     if (rc != SQLITE_DONE)
     {
         UNPROTECT(4);
         error(sqlite3_errmsg(db));
     }
-    sqlite3_reset(pStmt);
 
     if (nelem)
     {

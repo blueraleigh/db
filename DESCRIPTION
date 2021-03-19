@@ -6,10 +6,14 @@ Date: 2020-11-22
 Author: Michael C. Grundler
 Maintainer: Michael C. Grundler <mcgrundler@gmail.com>
 Description: Package db provides an interface to the SQLite library and a
-             subset of its API. This package can be used to perform normal
+             subset of its API. The package can be used to perform normal
              database operations but provides additional functionality for
-             creating virtual tables and SQL functions that invoke R callbacks.
-Imports: methods
+             creating virtual tables and user-defined SQL functions that
+             invoke R callbacks. It also provides a mechanism for adding
+             documentation to databases in the form of dynamic web pages
+             that can communicate with the database.
+Depends: R (>= 3.5.0)
+Imports: methods, tools
 NeedsCompilation: yes
 License: CC0
 Collate: db-package.R
@@ -20,5 +24,6 @@ Collate: db-package.R
   db-info.R
   db-function.R
   db-sqlar.R
+  db-subst.R
   db-vtable.R
 RoxygenNote: 7.1.1

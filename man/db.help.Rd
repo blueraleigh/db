@@ -2,6 +2,7 @@
 % Please edit documentation in R/db-httpd.R
 \name{db.help}
 \alias{db.help}
+\alias{db.ui}
 \title{Open the help documentation for a database}
 \usage{
 db.help(db)

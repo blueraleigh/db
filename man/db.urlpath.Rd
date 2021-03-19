@@ -15,8 +15,8 @@ db.urlpath(path, what)
 A character string.
 }
 \description{
-URL paths will all have the format /custom/name/head/tail?query
-Because the query portion of the path is parsed by R we don't
-need to retrieve it. Note that tail may be multipart. That is,
-in the URL /custom/foo/abc/def/hij the tail consists of def/hij.
+URL paths will all have the format /custom/<name>/<head>/<tail>
+Note that tail may be multipart. That is, in the URL
+/custom/foo/abc/def/hij the <name> = foo, <head> = abc and
+<tail> = def/hij.
 }

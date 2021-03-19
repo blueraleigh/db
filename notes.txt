@@ -64,4 +64,37 @@ environment under the name of the database file being opened.
 
 
 
+or rather, a dbpkg is an R package that implements at least one of
+    - one or more virtual table modules
+    - one or more user-defined sql functions
+    - one or more documentation web pages
+
+in other words, a dbpkg defines and operates on a set of sql schema stored
+in a sqlite database. a single sqlite database can inherit more than one
+dbpkg schema, or can inherit a subset of a single dbpkg schema.
+
+when db.open is called the argument dbpkg=list() is checked, which lists
+the set of dbpkg's the database being connected to inherits. it also checks
+the database for a 'dbpkg' table, and uses the entries in that table to load
+the appropriate R packages (taking the union of the arg and the table entries).
+
+each dbpkg needs to define three entrypoints:
+    dbpkg::views should return a named list of functions, one of the names
+    must be 'default'. each name corresponds to the HEAD of a URL (i.e.,
+    /custom/db.name/HEAD/tail), and when a url with that HEAD is requested the
+    function will be called to render the page's content. The 'default' function
+    is called when there is no HEAD (i.e. /custom/db.name/). Each function
+    will receive 2 arguments: the database connection and the http request data
+
+    dbpkg::modules should return a named list of functions that were made by a call
+    to db::new.virtualtable. each name is the name of the virtual table module
+    and the function will be called to register the module with the database.
+
+    dbpkg::functions should return a named list of functions. each name is the name
+    of a user-defined sql function and the function is the udf that will be
+    called when that name appears in a sql statement.
+
+
+
+
 

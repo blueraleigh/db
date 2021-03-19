@@ -18,7 +18,9 @@ system specific temporary folder.
 \section{Slots}{
 
 \describe{
-\item{\code{file}}{The name of the database file.}
+\item{\code{name}}{The name of the database file.}
+
+\item{\code{file}}{The absolute file path of the database file.}
 
 \item{\code{handle}}{An external pointer to the sqlite3 database connection.}
 }}

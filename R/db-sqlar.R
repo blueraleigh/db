@@ -108,7 +108,7 @@ db.sqlar.skeleton = function(db) {
 #' @param db The database connection. S4 object of class "database".
 #' @param path The path to the top-level directory of the archive.
 #' @details This will update the sqlar table in the database to reflect
-#' any changes made to the files in under \code{path} (including file
+#' any changes made to the files under \code{path} (including file
 #' additions and deletions and changed file permissions).
 #' @note The \code{\link{sqlar_compress}} function must be registered
 #' with the database connection for this function to work. This is done
@@ -124,9 +124,9 @@ db.sqlar.update = function(db, path) {
         full.names=TRUE)
     path.names = gsub(ignore, "", flist, fixed=TRUE)
     fstat = file.info(flist)
-    sqlar = db.fetchall(db.eval(db,
+    sqlar = db.eval(db,
             "SELECT name,mtime,mode FROM sqlar WHERE name != ?",
-            list(list(topdir))), TRUE)
+            list(list(topdir)), TRUE)
     rownames(sqlar) = sqlar$name
     deleted.files = setdiff(sqlar$name, path.names)
     added.files = setdiff(path.names, sqlar$name)
@@ -164,7 +164,7 @@ db.sqlar.update = function(db, path) {
 db.sqlar = function(db, path) {
     stopifnot(is(db, "database"))
     db.sqlar.skeleton(db)
-    if (db.fetch(db.eval(db, "SELECT COUNT(*) FROM sqlar"))[[1]] > 0)
+    if (db.eval(db, "SELECT COUNT(*) FROM sqlar")[[1]] > 0)
         stop("sqlar table already in use")
     path = normalizePath(path)
     ignore = paste(dirname(path), "/", sep="")
@@ -198,20 +198,25 @@ db.unsqlar = function(db, path) {
     wd = getwd()
     on.exit(setwd(wd))
     setwd(path)
-    cur = db.eval(db,
-        "SELECT
+    db.lapply(
+        db
+        , "
+        SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
-        FROM sqlar ORDER BY rowid")
-    while (!is.null(f <- db.fetch(cur))) {
-        if (length(f$data) == 1 && is.na(f$data)) {
-            dir.create(f$name, mode=as.octmode(f$mode))
-            Sys.setFileTime(f$name, as.POSIXct(f$mtime, origin="1970-01-01"))
-        } else {
-            writeBin(f$data, f$name)
-            Sys.chmod(f$name, as.octmode(f$mode))
-            Sys.setFileTime(f$name, as.POSIXct(f$mtime, origin="1970-01-01"))
+        FROM sqlar ORDER BY rowid"
+        , NULL
+        , function(f) {
+            if (length(f$data) == 1 && is.na(f$data)) {
+                dir.create(f$name, mode=as.octmode(f$mode))
+                Sys.setFileTime(f$name, as.POSIXct(f$mtime, origin="1970-01-01"))
+            } else {
+                writeBin(f$data, f$name)
+                Sys.chmod(f$name, as.octmode(f$mode))
+                Sys.setFileTime(f$name, as.POSIXct(f$mtime, origin="1970-01-01"))
+            }
         }
-    }
+    )
+    invisible()
 }
 
 
@@ -219,7 +224,6 @@ db.unsqlar = function(db, path) {
 #'
 #' @param raw An uncompressed byte vector.
 #' @return The compressed byte vector.
-#' @export
 sqlar_compress = function(raw) {
     useraw = raw
     zzfil = tempfile()
@@ -239,7 +243,6 @@ sqlar_compress = function(raw) {
 #' @param raw A compressed byte vector.
 #' @param sz The size of the uncompressed byte vector.
 #' @return The uncompressed byte vector.
-#' @export
 sqlar_uncompress = function(raw, sz) {
     if (sz > length(raw)) {
         # content was compressed

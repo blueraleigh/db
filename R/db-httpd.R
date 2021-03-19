@@ -1,129 +1,117 @@
-#' Retrieve the help handler for a database
+#' Respond to HTTP requests against a database
 #'
-#' @param db An S4 object of class "database".
-#' @description Databases that implement a help system are required to
-#' export a custom handler for responding to HTTP requests. To determine
-#' if a database implements a help system the database is checked for
-#' the presence of a table named Rdb_help. This should have the following
-#' schema
-#' \preformatted{
-#' CREATE TABLE dbpkg_doc(
-#'     handler TEXT,
-#'     pkg TEXT
-#' )
-#' }
-#' where 'handler' is the name of an R function and 'pkg' is the name of
-#' the R package that implements it. If such a table exists it should only
-#' have a single row. The handler function is imported from the package
-#' and assigned into the tools:::.httpd.handlers.env environment under the
-#' name of the database file. For this reason the name of the database must
-#' be under 64 characters long because R's built in HTTP server will only
-#' utilized custom handlers that are under 64 characters. Handlers should
-#' arrange to receive requests at URLs that look like /custom/<name>/.*,
-#' where <name> is the name of the database file. Handling functions can
-#' then retreive the database connection by passing <name> to
-#' \code{\link{db.get}}.
+#' Uses R's built in http server in src/modules/Rhttp.c
 #'
-#' An example URL may look like:
-#'
-#' http:localhost:8080/custom/db.name/abc/def?a=1&b=2
-#'
-#' where
-#' - db.name is the 'path name' and name of the database
-#'   available as db.path_get(path, 'name')
-#' - abc is the 'path head' available as db.path_get(path, 'head')
-#' - def is the 'path tail' available as db.path_get(path, 'tail')
-#' - a=1&b=2 is the query string, which R parses for us
-#'
-#' And a generic handler exported at package level would look like
-#'
-#' function(path, query, body, headers) {
-#'    path_head = db.path_get(path, 'head')
-#'    # dispatch to the handler for path_head
-#'    # passing along the same arguments
-#' }
-#' where query, body, and headers are provided by R's http server.
-#'
-#' query will be either:
-#'    - a NULL
-#'    - a named character vector representing the query string. the names will
-#'      be the query parameters and the items will be the values.
-#' body will be either:
-#'    - a NULL
-#'    - a named character vector representing the query string (in the event
-#'      that the body is a url-encoded form)
-#'    - a RAWSXP with the body content, possibly with the attribute "content-type"
-#' headers will be either:
-#'    - a NULL
-#'    - a RAWSXP with the header content
-#'
-#' All handlers should respond with the following:
-#'
-#' list(payload[, content-type[, headers[, status code]]])
-#'
-#' payload: can be a character vector of length one or a
-#'          raw vector. if the character vector is named "file" then
-#'          the content of a file of that name is the payload
-#'
-# content-type: must be a character vector of length one
-#'              or NULL (if present, else default is "text/html")
-#'
-#' headers: must be a character vector - the elements will
-#'          have CRLF appended and neither Content-type nor
-#'          Content-length may be used
-#'
-#' status code: must be an integer if present (default is 200)
+#' @param path Request URL path.
+#' @param reqquery Request query parameters.
+#' @param reqbody Request body.
+#' @param reqheaders Request headers.
+#' @details
+#' The URL \code{path} will always have a form that looks like
+#' /custom/<name>/<head>/<tail>, where <name> is the name of the
+#' database. Each of these parts can be extracted from the path
+#' using the function \code{\link{db.urlpath}}. Note that <tail>
+#' may consist of multiple parts. \code{db.httpd} will use the
+#' path <head> to dispatch to a function of that name, which is
+#' expected to generate the http response. This behavior follows closely
+#' the Wapp framework (wpp.tcl.tk). The function will receive
+#' the database connection, a named list of request data, and a response
+#' object that it is expected to fill out using the \code{db.reply*}
+#' family of functions.
 #' @export
-db.httpd = function(path, query, body, headers) {
-    name = db.urlpath(path, "name")
-    # seems that findVarInFrame3, which Rhttpd.c:handler_for_path
-    # uses to get the custom handler, drops attributes so that it
-    # just returns db.httpd without the attributes added by db.open.
-    # So here we get the handler again using get, which retains
-    # the attributes we use for dispatching.
-    handler = get(name, envir=tools:::.httpd.handlers.env)
-    db = db.get(name)
-    path_head = db.urlpath(path, "head")
-    path_info = db.urlpath(path, "info")
-    view = if (path_head == "" || path_head == "/") {
-        #attr(db.httpd, "default-page", exact=TRUE)
-        attr(handler, "default-page", exact=TRUE)
+db.httpd = function(path, reqquery, reqbody, reqheaders) {
+    # db.open will attach handler attributes to this function and
+    # assign it under PATH_NAME in the tools:::.httpd.handlers.env
+    # environment. it then gets evaluated in the tools namespace.
+
+    # this bit modified from opencpu::rhttpd_handler
+    METHOD = grep("Request-Method:"
+        , strsplit(rawToChar(reqheaders), "\n")[[1]]
+        , ignore.case=TRUE, value=TRUE);
+    METHOD = sub("Request-Method: ?", "", METHOD, ignore.case=TRUE)
+    if(!length(METHOD))
+        METHOD = ifelse(is.null(reqbody), "GET", "POST")
+
+    if (!METHOD %in% c("GET", "POST"))
+        return (
+            list("Requested method not supported", "text/plain", NULL, 405L))
+
+    PATH_NAME = db.urlpath(path, "name")
+    PATH_INFO = db.urlpath(path, "info")
+    PATH_HEAD = db.urlpath(path, "head")
+    PATH_TAIL = db.urlpath(path, "tail")
+    CTYPE = grep("Content-Type:"
+        , strsplit(rawToChar(reqheaders), "\n")[[1]]
+        , ignore.case=TRUE, value=TRUE)
+
+    REQDATA = list(
+        METHOD = METHOD,
+        PATH_HEAD = PATH_HEAD,
+        PATH_TAIL = PATH_TAIL,
+        PATH_INFO = PATH_INFO,
+        QUERY = reqquery,
+        BODY = reqbody,
+        CTYPE = CTYPE
+    )
+    # end ocpu modification
+
+    db = db.get(PATH_NAME)
+
+    # give each http request its own database connection?
+    #.db = db.open(db@file, register=FALSE)
+    #on.exit(db.close(.db))
+
+    # these are attached by db.open
+    handlers = attributes(sys.function())
+
+    view = if (PATH_HEAD == "" || PATH_HEAD == "/") {
+        handlers[["default"]]
     } else {
-        #attr(db.httpd, sprintf("%s-page", path_head), exact=TRUE)
-        attr(handler, sprintf("%s-page", path_head), exact=TRUE)
+        handlers[[PATH_HEAD]]
     }
 
     if (is.null(view))
-        return (db.error_page(path))
+        return (list("Requested resource not found", "text/plain", NULL, 404L))
 
-    response = view(db, path_info, query, body, headers)
+    db.response_start(RESPONSE)
+    if (inherits(e <- try(view(db, REQDATA, RESPONSE), TRUE), "try-error")) {
+        db.response_finish(RESPONSE)
+        return (list(e, "text/plain", NULL, 500L))
+    }
 
-    # process response to make sure correct
+    response = db.response_finish(RESPONSE)
+
     return (response)
 }
 
+delayedAssign("RESPONSE", db.response_init())
+
 #' Open the help documentation for a database
 #'
+#' @aliases db.ui
 #' @param db An S4 object of class "database".
 #' @seealso \code{\link{db.httpd}}
 #' @export
 db.help = function(db) {
-    if (!exists(db@file, envir=tools:::.httpd.handlers.env)) {
+    if (!exists(db@name, envir=tools:::.httpd.handlers.env)) {
         message("This database does not provide help pages")
         return (invisible())
     }
     port = tools::startDynamicHelp(NA)
-    path = sprintf("http://localhost:%s/custom/%s/", port, db@file)
+    path = sprintf("http://127.0.0.1:%s/custom/%s/", port, db@name)
     browseURL(URLencode(path))
 }
+
+#' @export
+db.ui = db.help
 
 
 #' Retrieve elements of a URL path
 #'
-#' URL paths will all have the format /custom/name/head/tail?query
-#' Because the query portion of the path is parsed by R we don't
-#' need to retrieve it. Note that tail may be multipart. That is,
-#' in the URL /custom/foo/abc/def/hij the tail consists of def/hij.
+#' URL paths will all have the format /custom/<name>/<head>/<tail>
+#' Note that tail may be multipart. That is, in the URL
+#' /custom/foo/abc/def/hij the <name> = foo, <head> = abc and
+#' <tail> = def/hij.
 #'
 #' @param path A URL path.
 #' @param what The part of the path to retrieve ('name', 'head', 'tail', or 'info').
@@ -191,3 +179,107 @@ db.urlpath = local({
             name=urlpath_name)(path)
     }
 })
+
+
+db.response_init = function() {
+    resp = db.open()
+    db.eval(resp, "BEGIN")
+    db.eval(resp, "CREATE TABLE headers(tag TEXT, value TEXT)")
+    db.eval(resp, "CREATE TABLE content_type(ct TEXT)")
+    db.eval(resp, "CREATE TABLE status_code(code INTEGER)")
+    db.eval(resp, "CREATE TABLE reply(content BLOB)")
+    db.eval(resp, "INSERT INTO reply VALUES ('')")
+    db.eval(resp, "INSERT INTO content_type VALUES ('text/html')")
+    db.eval(resp, "INSERT INTO status_code VALUES (200)")
+    db.eval(resp, "COMMIT")
+    reg.finalizer(
+            resp@handle
+            , function(handle) .Call(db_close, handle)
+            , onexit=TRUE)
+    return (resp)
+}
+
+
+db.response_start = function(resp) {
+    db.eval(resp, "BEGIN")
+}
+
+
+db.response_finish = function(resp) {
+    db.eval(resp, "COMMIT")
+    reply = db.eval(resp, "SELECT content FROM reply")[[1]]
+    headers = do.call(
+        c
+        , db.lapply(
+            resp
+            , "SELECT * FROM headers"
+            , FUN=function(l) {
+                paste(l$tag, l$value, sep=": ")
+            }
+        )
+    )
+    ct = db.eval(resp, "SELECT ct FROM content_type")[[1]]
+    code = db.eval(resp, "SELECT code FROM status_code")[[1]]
+    db.eval(resp, "UPDATE reply SET content = ''")
+    db.eval(resp, "UPDATE content_type SET ct = 'text/html'")
+    db.eval(resp, "UPDATE status_code SET code = 200")
+    db.eval(resp, "DELETE FROM headers")
+    # we can pass NULL for ct and headers and Rhttpd.c:process_request_ will
+    # know to use its default values but we have to pass an integer
+    # status code so if it's not set we cannot return NULL
+    if (!is.null(code))
+        return (list(reply, ct, headers, code))
+    else
+        return (list(reply, ct, headers))
+}
+
+#' Add a header to the HTTP response
+#' @export
+db.reply_header = function(resp, tag, value) {
+    db.eval(
+        resp
+        , "INSERT INTO headers VALUES(?,?)"
+        , c(as.character(tag), as.character(value)))
+}
+
+#' Set the status code of the HTTP response
+#' @export
+db.reply_status = function(resp, code) {
+    db.eval(
+        resp
+        , "UPDATE status_code SET code = ?"
+        , as.integer(code))
+}
+
+#' Set the MIME type of the HTTP response
+#' @export
+db.reply_type = function(resp, type) {
+    db.eval(
+        resp
+        , "UPDATE content_type SET ct = ?"
+        , as.character(type))
+}
+
+#' Add text to the HTTP response
+#'
+#' @param resp The HTTP response being formed
+#' @param reply Text to append to the HTTP response
+#' @export
+db.reply = function(resp, text) {
+    db.eval(
+        resp
+        , "UPDATE reply SET content = content || ? || '\n'"
+        , text)
+}
+
+#' Make the contents of a file the HTTP response
+#'
+#' @param resp The HTTP response being formed
+#' @param filename Name of the file whose content forms the response
+#' @export
+db.reply_file = function(resp, filename) {
+    db.eval(
+        resp
+        , 'UPDATE reply SET content = ?'
+        , readBin(filename, "raw", file.size(filename)))
+}

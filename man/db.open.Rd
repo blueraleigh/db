@@ -4,7 +4,14 @@
 \alias{db.open}
 \title{Open a new database connection}
 \usage{
-db.open(file = ":memory:", functions = list(), modules = list())
+db.open(
+  file = ":memory:",
+  functions = list(),
+  modules = list(),
+  views = list(),
+  register = TRUE,
+  mode = c("r+", "r")
+)
 }
 \arguments{
 \item{file}{A character string specifying the database file.
@@ -18,52 +25,52 @@ created at that location and opened.}
 \item{functions}{A named list of functions. Each element is a
 user-defined SQL function to register with the database connection.}
 
-\item{modules}{A list of virtual table module factories created
-by \code{\link{new.virtualtable}}. Each element should be a function
+\item{modules}{A named list of virtual table module factories created
+by \code{\link{db.virtualtable}}. Each element should be a function
 that takes as a single parameter the database connection. When called
 the function will register the virtual table implementation, with
 the database connection.}
+
+\item{views}{A named list of functions. Each element is a function
+that implements a database documentation page. See \code{\link{db.httpd}}
+for details on how to write these.}
+
+\item{register}{A boolean. Should the database connection be registered
+with the internal registry? \code{TRUE} by default, in which case a request
+to open a database that is already opened will return the same connection.
+To open a second connection to the same database set \code{register=FALSE}.
+The documentation system only works on registered database connections.}
+
+\item{mode}{If \code{mode = "r+"} the database is opened for reading and
+writing and created if it does not already exist. If \code{mode = "r"} the
+database is opened for reading only. An error will be returned if the
+database does not exist or if a write attempt is made.}
 }
 \value{
-An S4 object of class "database". This object has two slots.
+An S4 object of class "database". This object has three slots.
 the \code{handle} slot is an external pointer to the underlying
 sqlite3 database object. The \code{file} slot is a character string
-with the database file.
+with the absolute path of the database file. The \code{name} slot is
+the name of the database file.
 }
 \description{
 Open a new database connection
 }
 \details{
 When a database connection is opened the database is checked
-for the presence of two system tables named dbpkg_vtable and
-dbpkg_sqlfunc. These two tables can be used to register virtual table
-implementations and user-defined SQL functions with the database
-connection. dbpkg_vtable should have the following schema
-\preformatted{
-CREATE TABLE dbpkg_vtable (
-   mod TEXT NOT NULL,
-   pkg TEXT NOT NULL
+for the presence of a system table named dbpkg. This table can be used to
+register virtual table implementations, user-defined SQL functions, and
+documentation pages with the database connection. The dbpkg table should
+have the following schema \preformatted{
+CREATE TABLE dbpkg (
+   pkg TEXT NOT NULL PRIMARY KEY
 )
 }
-where 'mod' is the name of a virtual table module and 'pkg' is the name
-of an R package that implements the module methods. This package must
-export a function named db.register_<mod>, where <mod> is replaced by
-the value of 'mod' stored in the database table. This should be a function
-returned by a call to \code{\link{new.virtualtable}}. Rdb will then call
-that function, passing it the newly created database connection, which will
-register that module with the database.
-
-dbpkg_sqlfunc should have the following schema
-\preformatted{
-CREATE TABLE dbpkg_sqlfunc (
-   name TEXT NOT NULL,
-   func TEXT NOT NULL,
-   pkg TEXT NOT NULL
-)
-}
-where 'name' is the name of user-defined SQL function, 'func' is the name
-of the R function that implements it, and 'pkg' is the name of the package
-that exports the R function. Rdb will then call \code{\link{db.function}}
-to register the function with the newly created database connection under
-the given 'name'.
+where 'pkg' is the name of an R package that implements the various
+extensions. An R package that implements dbpkg extensions must export
+three functions named 'functions', 'modules', and 'views' each of which
+is expected to return a named list of functions to register with the
+newly formed database connection. Note that any functions passed in
+as arguments to \code{db.open} (via 'functions', 'modules', and 'views')
+take precedence over functions provided by dbpkg extensions.
 }

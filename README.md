@@ -3,7 +3,9 @@
 Package db provides an interface to the SQLite library and a subset of
 its API. This package can be used to perform normal database
 operations but also provides additional functionality for creating
-virtual tables and SQL functions that invoke R callbacks.
+virtual tables and SQL functions that invoke R callbacks. It also 
+provides a mechanism for adding documentation to databases in the
+form of dynamic web pages that can communicate with the database.
 
 # Installation
 

@@ -1,4 +1,4 @@
-library(Rdb)
+library(db)
 
 callbacks = list(
     .create = function(db, table, ...) {
@@ -57,13 +57,9 @@ callbacks = list(
             # or it could be a select statement to evaluate
 
             if (substr(...elt(2), 1, 1) == "(")
-                cur = db.eval(db, substr(...elt(2), 2, nchar(...elt(2))-1))
+                .data = db.eval(db, substr(...elt(2), 2, nchar(...elt(2))-1), df=TRUE)
             else
-                cur = db.eval(db, sprintf("SELECT * FROM %s", ...elt(2L)))
-            if (!is.null(cur))
-                .data = db.fetchall(cur, TRUE)
-            else
-                .data = NULL
+                .data = db.eval(db, sprintf("SELECT * FROM %s", ...elt(2L)), df=TRUE)
 
             assign("data", ...elt(2), envir=env)
             assign(".data", .data, envir=env)
@@ -96,11 +92,12 @@ db.eval(db, "CREATE TABLE cars(speed REAL, dist REAL)")
 db.eval(db, "INSERT INTO cars VALUES(?,?)", cars)
 
 
-db.fetch(db.eval(db,
-    "select * from lm('speed ~ dist', 'cars')"))
+# select * from lm where formula='speed ~ dist' and data='cars'
+db.eval(db,
+    "select * from lm('speed ~ dist', 'cars')")
 
-db.fetch(db.eval(db,
-    "select * from lm('speed ~ dist', '(select * from cars)')"))
+db.eval(db,
+    "select * from lm('speed ~ dist', '(select * from cars)')")
 
 db.eval(db, "create view foo as select * from lm('speed ~ dist', 'cars')")
-db.fetch(db.eval(db, "select * from foo"))
+db.eval(db, "select * from foo")

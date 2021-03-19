@@ -6,14 +6,12 @@
 \alias{Cur}
 \title{An S4 class to wrap a prepared SQL statement}
 \description{
-An S4 class to wrap a prepared SQL statement
+This is meant for internal use only.
 }
 \details{
 SQLite compiles SQL statements into bytecode which it
 executes on a virtual machine. This class maintains a reference to
-the compiled SQL program so that it can be repeatedly executed using
-the \code{\link{db.fetch}} and \code{\link{db.fetchall}} functions without
-the overhead of recompilation.
+the compiled SQL program so that it can be used by \code{\link{db.fetch}}.
 }
 \section{Slots}{
 

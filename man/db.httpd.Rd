@@ -2,83 +2,32 @@
 % Please edit documentation in R/db-httpd.R
 \name{db.httpd}
 \alias{db.httpd}
-\title{Retrieve the help handler for a database}
+\title{Respond to HTTP requests against a database}
 \usage{
-db.httpd(path, query, body, headers)
+db.httpd(path, reqquery, reqbody, reqheaders)
 }
 \arguments{
-\item{db}{An S4 object of class "database".}
+\item{path}{Request URL path.}
+
+\item{reqquery}{Request query parameters.}
+
+\item{reqbody}{Request body.}
+
+\item{reqheaders}{Request headers.}
 }
 \description{
-Databases that implement a help system are required to
-export a custom handler for responding to HTTP requests. To determine
-if a database implements a help system the database is checked for
-the presence of a table named Rdb_help. This should have the following
-schema
-\preformatted{
-CREATE TABLE dbpkg_doc(
-    handler TEXT,
-    pkg TEXT
-)
+Uses R's built in http server in src/modules/Rhttp.c
 }
-where 'handler' is the name of an R function and 'pkg' is the name of
-the R package that implements it. If such a table exists it should only
-have a single row. The handler function is imported from the package
-and assigned into the tools:::.httpd.handlers.env environment under the
-name of the database file. For this reason the name of the database must
-be under 64 characters long because R's built in HTTP server will only
-utilized custom handlers that are under 64 characters. Handlers should
-arrange to receive requests at URLs that look like /custom/<name>/.*,
-where <name> is the name of the database file. Handling functions can
-then retreive the database connection by passing <name> to
-\code{\link{db.get}}.
-
-An example URL may look like:
-
-http:localhost:8080/custom/db.name/abc/def?a=1&b=2
-
-where
-- db.name is the 'path name' and name of the database
-  available as db.path_get(path, 'name')
-- abc is the 'path head' available as db.path_get(path, 'head')
-- def is the 'path tail' available as db.path_get(path, 'tail')
-- a=1&b=2 is the query string, which R parses for us
-
-And a generic handler exported at package level would look like
-
-function(path, query, body, headers) {
-   path_head = db.path_get(path, 'head')
-   # dispatch to the handler for path_head
-   # passing along the same arguments
-}
-where query, body, and headers are provided by R's http server.
-
-query will be either:
-   - a NULL
-   - a named character vector representing the query string. the names will
-     be the query parameters and the items will be the values.
-body will be either:
-   - a NULL
-   - a named character vector representing the query string (in the event
-     that the body is a url-encoded form)
-   - a RAWSXP with the body content, possibly with the attribute "content-type"
-headers will be either:
-   - a NULL
-   - a RAWSXP with the header content
-
-All handlers should respond with the following:
-
-list(payload[, content-type[, headers[, status code]]])
-
-payload: can be a character vector of length one or a
-         raw vector. if the character vector is named "file" then
-         the content of a file of that name is the payload
-
-             or NULL (if present, else default is "text/html")
-
-headers: must be a character vector - the elements will
-         have CRLF appended and neither Content-type nor
-         Content-length may be used
-
-status code: must be an integer if present (default is 200)
+\details{
+The URL \code{path} will always have a form that looks like
+/custom/<name>/<head>/<tail>, where <name> is the name of the
+database. Each of these parts can be extracted from the path
+using the function \code{\link{db.urlpath}}. Note that <tail>
+may consist of multiple parts. \code{db.httpd} will use the
+path <head> to dispatch to a function of that name, which is
+expected to generate the http response. This behavior follows closely
+the Wapp framework (wpp.tcl.tk). The function will receive
+the database connection, a named list of request data, and a response
+object that it is expected to fill out using the \code{db.reply*}
+family of functions.
 }

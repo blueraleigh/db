@@ -4,7 +4,7 @@
 \alias{db.eval}
 \title{Evaluate SQL statements}
 \usage{
-db.eval(db, stmt, params)
+db.eval(db, stmt, params, df = FALSE)
 }
 \arguments{
 \item{db}{The database connection. An S4 object of class "database".}
@@ -18,11 +18,18 @@ sublist in the list of lists corresponds to a single parameter set.
 The number of parameters in each parameter set should equal the
 number of '?' characters in the SQL statement. If multiple parameter
 sets are bound to the statement then the statement may not be a
-SELECT statement.}
+SELECT statement. For the common case when there is only a single parameter
+set it is permitted to pass an atomic vector or a single list (i.e., no
+sublists) with the parameter values to bind.}
+
+\item{df}{A boolean. Should the result be returned as a data.frame?}
 }
 \value{
-A cursor to retrieve the results of a SELECT statement or
-(invisibly) NULL if the statement is not a SELECT.
+The result of a SELECT statement or NULL if the
+statement is not a SELECT. Results will be returned as
+a matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
+from the result set. If \code{df=FALSE} subsets of the matrix will
+return lists rather than atomic vectors.
 }
 \description{
 Evaluate SQL statements
@@ -30,17 +37,10 @@ Evaluate SQL statements
 \examples{
 db = db.open()
 db.eval(db, "CREATE TABLE foo(f1 TEXT)")
-db.eval(db, "INSERT INTO foo VALUES (?)", list(list("hello")))
+db.eval(db, "INSERT INTO foo VALUES (?)", list("hello"))
+db.eval(db, "INSERT INTO foo VALUES (?)", c("world"))
 db.eval(db, "INSERT INTO foo VALUES (?)", data.frame(letters))
 db.eval(db, "INSERT INTO foo VALUES (?)", matrix("goodbye", 1, 1))
-cursor = db.eval(db, "SELECT * FROM foo")
-db.fetchall(cursor)          # return a matrix
-db.fetchall(cursor, TRUE)    # return a data.frame
-db.fetch(cursor)             # return one result row
-db.fetchall(cursor, TRUE)    # note that the first row is missing!
-db.fetchall(cursor, TRUE)    # okay, now it is back
+db.eval(db, "SELECT * FROM foo")
 db.close(db)
-}
-\seealso{
-\code{\link{db.fetch}} \code{\link{db.fetchall}}
 }

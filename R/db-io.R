@@ -9,84 +9,79 @@
 #' created at that location and opened.
 #' @param functions A named list of functions. Each element is a
 #' user-defined SQL function to register with the database connection.
-#' @param modules A list of virtual table module factories created
-#' by \code{\link{new.virtualtable}}. Each element should be a function
+#' @param modules A named list of virtual table module factories created
+#' by \code{\link{db.virtualtable}}. Each element should be a function
 #' that takes as a single parameter the database connection. When called
 #' the function will register the virtual table implementation, with
 #' the database connection.
-#' @param handlers A named list of functions. Each element is a function
+#' @param views A named list of functions. Each element is a function
 #' that implements a database documentation page. See \code{\link{db.httpd}}
 #' for details on how to write these.
+#' @param register A boolean. Should the database connection be registered
+#' with the internal registry? \code{TRUE} by default, in which case a request
+#' to open a database that is already opened will return the same connection.
+#' To open a second connection to the same database set \code{register=FALSE}.
+#' The documentation system only works on registered database connections.
+#' @param mode If \code{mode = "r+"} the database is opened for reading and
+#' writing and created if it does not already exist. If \code{mode = "r"} the
+#' database is opened for reading only. An error will be returned if the
+#' database does not exist or if a write attempt is made.
 #' @details When a database connection is opened the database is checked
-#' for the presence of two system tables named dbpkg_vtable and
-#' dbpkg_sqlfunc. These two tables can be used to register virtual table
-#' implementations and user-defined SQL functions with the database
-#' connection. dbpkg_vtable should have the following schema
-#' \preformatted{
-#' CREATE TABLE dbpkg_vtable (
-#'    mod TEXT NOT NULL,
-#'    pkg TEXT NOT NULL
+#' for the presence of a system table named dbpkg. This table can be used to
+#' register virtual table implementations, user-defined SQL functions, and
+#' documentation pages with the database connection. The dbpkg table should
+#' have the following schema \preformatted{
+#' CREATE TABLE dbpkg (
+#'    pkg TEXT NOT NULL PRIMARY KEY
 #' )
 #' }
-#' where 'mod' is the name of a virtual table module and 'pkg' is the name
-#' of an R package that implements the module methods. This package must
-#' export a function named db.register_<mod>, where <mod> is replaced by
-#' the value of 'mod' stored in the database table. This should be a function
-#' returned by a call to \code{\link{new.virtualtable}}. db will then call
-#' that function, passing it the newly created database connection, which will
-#' register that module with the database.
-#'
-#' dbpkg_sqlfunc should have the following schema
-#' \preformatted{
-#' CREATE TABLE dbpkg_sqlfunc (
-#'    name TEXT NOT NULL,
-#'    func TEXT NOT NULL,
-#'    pkg TEXT NOT NULL
-#' )
-#' }
-#' where 'name' is the name of user-defined SQL function, 'func' is the name
-#' of the R function that implements it, and 'pkg' is the name of the package
-#' that exports the R function. db will then call \code{\link{db.function}}
-#' to register the function with the newly created database connection under
-#' the given 'name'.
-#'
-#' When a database connection is opened the database is also checked for a
-#' system table named dbpkg_doc that can be used to add static or dynamic web
-#' pages to view and interact with the database.
-#'
-#' dbpkg_doc should have the following schema
-#' \preformatted{
-#' CREATE TABLE dbpkg_doc (
-#'    page TEXT NOT NULL,
-#'    handler TEXT NOT NULL,
-#'    pkg TEXT NOT NULL
-#' )
-#' }
-#' where 'page' is the name of web page, 'handler' is the name
-#' of the R function that implements it, and 'pkg' is the name of the package
-#' that exports the R function. For a description of how handler functions
-#' should be written consult the documentation for \code{\link{db.httpd}}.
-#' @return An S4 object of class "database". This object has two slots.
+#' where 'pkg' is the name of an R package that implements the various
+#' extensions. An R package that implements dbpkg extensions must export
+#' three functions named 'functions', 'modules', and 'views' each of which
+#' is expected to return a named list of functions to register with the
+#' newly formed database connection. Note that any functions passed in
+#' as arguments to \code{db.open} (via 'functions', 'modules', and 'views')
+#' take precedence over functions provided by dbpkg extensions.
+#' @return An S4 object of class "database". This object has three slots.
 #' the \code{handle} slot is an external pointer to the underlying
 #' sqlite3 database object. The \code{file} slot is a character string
-#' with the database file.
+#' with the absolute path of the database file. The \code{name} slot is
+#' the name of the database file.
 #' @export
 db.open = function(file=":memory:", functions=list(), modules=list()
-    , handlers=list()) {
+    , views=list(), register=TRUE, mode=c("r+", "r")) {
     stopifnot(is.character(file))
     stopifnot(is.list(functions))
     stopifnot(is.list(modules))
-    stopifnot(is.list(handlers))
-    if (!is.null(db <- db.get(basename(enc2utf8(file)))))
+    stopifnot(is.list(views))
+    file = enc2utf8(file)
+    if (!register && length(views))
+        stop("views can only be supplied for registered connections")
+    if (register && !is.null(db <- db.get(basename(file))))
         return (db)
     db = Db()
-    db@file = basename(enc2utf8(file))
-    db@handle = .Call(db_open, db@file)
+    db@name = basename(file)
+    db@handle = .Call(db_open, file, match.arg(mode))
+    if (file != "" && file != ":memory:")
+        db@file = normalizePath(file)
+    else
+        db@file = ""
+    db@registered = local({
+        registered = FALSE
+        function(register) {
+            if (!missing(register) && register)
+                registered <<- TRUE
+            else
+                return (registered)
+        }
+    })
     db.function(db, "sqlar_compress", sqlar_compress)
     db.function(db, "sqlar_uncompress", sqlar_uncompress)
     if (length(functions) && is.null(names(functions)))
         stop("functions list must be named")
-    if (length(handlers) && is.null(names(handlers)))
+    if (length(modules) && is.null(names(modules)))
+        stop("modules list must be named")
+    if (length(views) && is.null(names(views)))
         stop("handlers list must be named")
     handler = db.httpd
     for (i in seq_along(functions)) {
@@ -102,94 +97,46 @@ db.open = function(file=":memory:", functions=list(), modules=list()
             stop("modules list contains non-function")
         mod(db)
     }
-    for (i in seq_along(handlers)) {
-        h = handlers[[i]]
-        if (!is.function(h))
-            stop("handlers list contains non-function")
-        attr(handler, sprintf("%s-page", names(handlers)[i])) = h
+    for (i in seq_along(views)) {
+        view = views[[i]]
+        if (!is.function(view))
+            stop("views list contains non-function")
+        attr(handler, names(views)[i]) = view
     }
-    if (db.exists(db, "dbpkg_vtable")) {
-        db.lapply(db,
-            "SELECT * FROM dbpkg_vtable", NULL,
-            function(l) {
-                msg0 = paste0(
-                    "Virtual table module '%s' could not be loaded"
-                    , " because package '%s' is missing."
-                    , "\nSome functionality may be absent.")
-                msg1 = paste0(
-                    "Virtual table module '%s' could not be loaded"
-                    , " because package '%s' does not export a"
-                    , "\n'db.register_%s' function. Some functionality"
-                    , " may be absent.")
-                if (requireNamespace(l$pkg, quietly=TRUE)) {
-                    factory = sprintf("db.register_%s", l$mod)
-                    if (!is.null(ffn <- get0(factory, getNamespace(l$pkg))))
-                        ffn(db)
-                    else
-                        message(sprintf(msg1, l$mod, l$pkg, l$mod))
-                } else {
-                    message(sprintf(msg0, l$mod, l$pkg))
-                }
-            }
-        )
-    }
-    if (db.exists(db, "dbpkg_sqlfunc")) {
-        db.lapply(db,
-            "SELECT * FROM dbpkg_sqlfunc", NULL,
-            function(l) {
-                msg0 = paste0(
-                    "User-defined SQL function '%s' could not be loaded"
-                    , " because package '%s' is missing."
-                    , "\nSome functionality may be absent.")
-                msg1 = paste0(
-                    "User-defined SQL function '%s' could not be loaded"
-                    , " because package '%s' does not export '%s'."
-                    , "\nSome functionality may be absent.")
-                if (requireNamespace(l$pkg, quietly=TRUE)) {
-                    if (!is.null(fn <- get0(l$func, getNamespace(l$pkg))))
-                        db.function(db, l$name, fn)
-                    else
-                        message(sprintf(msg1, l$name, l$pkg, l$func))
-                } else {
-                    message(sprintf(msg0, l$name, l$pkg))
-                }
-            }
-        )
-    }
-    if (db.exists(db, "dbpkg_doc")) {
-        handlers = db.lapply(db,
-            "SELECT * FROM dbpkg_doc", NULL,
-            function(l) {
-                msg0 = paste0("Package '%s' is missing."
-                    , " Some documentation may be unavailable")
-                msg1 = paste0("Could not import '%s' from package '%s'."
-                    , " Some documentation may be unavailable")
-                if (requireNamespace(l$pkg, quietly=TRUE)) {
-                    if (!is.null(FUN <- get0(
-                        l$handler, getNamespace(l$pkg)))) {
-                        NAME = sprintf("%s-page", l$page)
-                        return (list(NAME=FUN))
-                    } else {
-                        message(sprintf(msg1, l$handler, l$pkg))
+    if (db.exists(db, "dbpkg")) {
+        db.lapply(db
+            , "SELECT DISTINCT pkg FROM dbpkg"
+            , FUN = function(l) {
+                pkg = l$pkg
+                if (requireNamespace(pkg, quietly=TRUE)) {
+                    udfs = get0("functions", getNamespace(pkg), mode="function")
+                    mods = get0("modules", getNamespace(pkg), mode="function")
+                    docs = NULL
+                    if (register)
+                        docs = get0("views", getNamespace(pkg), mode="function")
+                    for (i in seq_along(udfs)) {
+                        if (!names(udfs)[i] %in% functions)
+                            db.function(db, names(udfs)[i], udfs[[i]])
+                    }
+                    for (i in seq_along(mods)) {
+                        if (!names(mods)[i] %in% modules)
+                            mods[[i]](db)
+                    }
+                    for (i in seq_along(docs)) {
+                        if (!names(docs)[i] %in% views)
+                            attr(handler, names(docs)[i]) = docs[[i]]
                     }
                 } else {
-                    message(sprintf(msg0, l$pkg))
+                    message(gettextf(paste0("Package '%s' is missing."
+                        , " Some functionality may be unavailable."), pkg))
                 }
-                return (NULL)
             }
         )
-        for (i in seq_along(handlers)) {
-            if (!is.null(handlers[[i]])) {
-                NAME = names(handlers[[i]])[1L]
-                FUN = handlers[[i]][[1L]]
-                attr(handler, NAME) = FUN
-            }
-        }
     }
-    if (length(attributes(handler)))
-        assign(db@file, handler, envir=tools:::.httpd.handlers.env)
-    if (file != "" && file != ":memory:")
+    if (register && file != "" && file != ":memory:")
         db.register(db)
+    if (db@registered() && length(attributes(handler)))
+        assign(db@name, handler, envir=tools:::.httpd.handlers.env)
     return (db)
 }
 
@@ -219,8 +166,10 @@ db.get = function(name) {
 #' @param db An S4 object of class "database".
 #' @export
 db.register = function(db) {
-    stopifnot(db@file != "" && db@file != ":memory:")
-    assign(db@file, db, envir=DB.connections)
+    stopifnot(db@name != "" && db@name != ":memory:")
+    stopifnot(!db@registered())
+    db@registered(TRUE)
+    assign(db@name, db, envir=DB.connections)
 }
 
 #' Unregister a database connection
@@ -230,5 +179,9 @@ db.register = function(db) {
 #' @param db An S4 object of class "database".
 #' @export
 db.unregister = function(db) {
-    rm(db@file, envir=DB.connections)
+    if (db@registered()) {
+        rm(list=db@name, envir=DB.connections)
+        if (exists(db@name, envir=tools:::.httpd.handlers.env))
+            rm(list=db@name, envir=tools:::.httpd.handlers.env)
+    }
 }
