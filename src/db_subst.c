@@ -58,7 +58,10 @@ SEXP db_subst(SEXP db, SEXP txt, SEXP env) {
     unused = sqlite3_str_finish(e);
     sqlite3_free(unused);
     ret = sqlite3_str_finish(s);
-    result = PROTECT(mkString(ret));
+    if (ret)
+        result = PROTECT(mkString(ret));
+    else
+        result = PROTECT(mkString(""));
     sqlite3_free(ret);
     UNPROTECT(1);
     return result;
