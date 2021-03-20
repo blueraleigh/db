@@ -24,5 +24,5 @@
 db.subst = function(db, text, env=parent.frame()) {
     stopifnot(is(db, "database"))
     stopifnot(is.character(text))
-    .Call(db_subst, db, text, env)
+    .Call(db_subst, db@handle, enc2utf8(text), env)
 }

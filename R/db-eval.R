@@ -49,7 +49,7 @@ db.prepare = function(db, stmt, params) {
     stopifnot(is(db, "database"))
     params = db.param(params)
     npars = length(params[[1L]])
-    nbind = if ((nbind <- gregexpr("\\?", stmt)[[1]]) > 0) {
+    nbind = if ((nbind <- gregexpr("\\?", stmt)[[1]])[1L] > 0) {
         length(nbind)
     } else {
         0L

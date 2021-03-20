@@ -36,16 +36,19 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
         return (
             list("Requested method not supported", "text/plain", NULL, 405L))
 
-    PATH_NAME = db.urlpath(path, "name")
-    PATH_INFO = db.urlpath(path, "info")
-    PATH_HEAD = db.urlpath(path, "head")
-    PATH_TAIL = db.urlpath(path, "tail")
+    # e.g. /custom/specimen.db/specimen/images/1234
+    PATH_ROOT = db.urlpath(path, "root") # => /custom/specimen.db
+    PATH_NAME = db.urlpath(path, "name") # => specimen.db
+    PATH_INFO = db.urlpath(path, "info") # => specimen/images/1234
+    PATH_HEAD = db.urlpath(path, "head") # => specimen
+    PATH_TAIL = db.urlpath(path, "tail") # => images/1234
     CTYPE = grep("Content-Type:"
         , strsplit(rawToChar(reqheaders), "\n")[[1]]
         , ignore.case=TRUE, value=TRUE)
 
     REQDATA = list(
         METHOD = METHOD,
+        PATH_ROOT = PATH_ROOT,
         PATH_HEAD = PATH_HEAD,
         PATH_TAIL = PATH_TAIL,
         PATH_INFO = PATH_INFO,
@@ -64,10 +67,13 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
     # these are attached by db.open
     handlers = attributes(sys.function())
 
-    view = if (PATH_HEAD == "" || PATH_HEAD == "/") {
+    # the default method just returns REQDATA unmodified
+    REQDATA = handlers[[".beforeDispatch"]](db, REQDATA)
+
+    view = if (REQDATA[["PATH_HEAD"]] == "") {
         handlers[["default"]]
     } else {
-        handlers[[PATH_HEAD]]
+        handlers[[REQDATA[["PATH_HEAD"]]]]
     }
 
     if (is.null(view))
@@ -81,6 +87,17 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
 
     response = db.response_finish(RESPONSE)
 
+    # the default method just returns response unmodified
+    response = handlers[[".beforeReply"]](db, response)
+
+    return (response)
+}
+
+attr(db.httpd, ".beforeDispatch") = function(db, request) {
+    return (request)
+}
+
+attr(db.httpd, ".beforeReply") = function(db, response) {
     return (response)
 }
 
@@ -132,6 +149,14 @@ db.urlpath = local({
         return (path)
     }
 
+    urlpath_root = function(path) {
+        matches = gregexpr("/", path, fixed=TRUE)[[1]]
+        if (length(matches) < 3)
+            return (path)
+        stop = matches[3] - 1
+        return (substr(path, 1, stop))
+    }
+
     urlpath_name = function(path) {
         # /custom/name/
         matches = gregexpr("/", path, fixed=TRUE)[[1]]
@@ -153,12 +178,12 @@ db.urlpath = local({
     }
 
     urlpath_tail = function(path) {
-        # /custom/name/head/tail/
+        # /custom/name/head/tail/tail/
         matches = gregexpr("/", path, fixed=TRUE)[[1]]
         if (length(matches) < 5)
             return ("")
         start = matches[4] + 1
-        stop = matches[5] - 1
+        stop = matches[length(matches)] - 1
         return (substr(path, start, stop))
     }
 
@@ -173,6 +198,7 @@ db.urlpath = local({
     function(path, what) {
         path = urlpath_normalize(path)
         switch(what,
+            root=urlpath_root,
             info=urlpath_info,
             head=urlpath_head,
             tail=urlpath_tail,
@@ -239,7 +265,7 @@ db.reply_header = function(resp, tag, value) {
     db.eval(
         resp
         , "INSERT INTO headers VALUES(?,?)"
-        , c(as.character(tag), as.character(value)))
+        , list(as.character(tag), as.character(value)))
 }
 
 #' Set the status code of the HTTP response
@@ -258,6 +284,13 @@ db.reply_type = function(resp, type) {
         resp
         , "UPDATE content_type SET ct = ?"
         , as.character(type))
+}
+
+#' Redirect to the given location
+#' @export
+db.reply_redirect = function(resp, location) {
+    db.reply_status(resp, 307L)
+    db.reply_header(resp, "Location", as.character(location))
 }
 
 #' Add text to the HTTP response
