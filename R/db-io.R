@@ -69,8 +69,17 @@ db.open = function(file=":memory:", functions=list(), modules=list()
     db@registered = local({
         registered = FALSE
         function(register) {
-            if (!missing(register) && register)
-                registered <<- TRUE
+            if (!missing(register)) {
+                ok = FALSE
+                for (frame in 1:sys.nframe()) {
+                    fun = sys.function(frame)
+                    if (environmentName(environment(fun)) == "db")
+                        ok = TRUE
+                }
+                if (!ok)
+                    stop("cannot call `registered` from this context")
+                registered <<- register
+            }
             else
                 return (registered)
         }
@@ -181,6 +190,7 @@ db.register = function(db) {
 db.unregister = function(db) {
     if (db@registered()) {
         rm(list=db@name, envir=DB.connections)
+        db@registered(FALSE)
         if (exists(db@name, envir=tools:::.httpd.handlers.env))
             rm(list=db@name, envir=tools:::.httpd.handlers.env)
     }
