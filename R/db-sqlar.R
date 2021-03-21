@@ -1,32 +1,33 @@
 .sqlar.delete = function(db, files) {
     stmt = sprintf("DELETE FROM sqlar WHERE name IN (%s)",
                 paste0(rep("?", length(files)), collapse=","))
-    db.eval(db, stmt, list(as.list(files)))
+    db.eval(db, stmt, as.list(files))
 }
 
 .sqlar.insert = function(db, fstat, files, ignore.path) {
     fstat = fstat[file.path(normalizePath(ignore.path), files), ]
     for (i in 1:nrow(fstat)) {
         if (fstat$isdir[i]) {
-            db.eval(db,
-                "INSERT INTO sqlar(name,mode,mtime,sz) VALUES(?,?,?,?)",
-                list(list(
-                    files[i],
-                    unclass(fstat$mode[i]),
-                    unclass(fstat$mtime[i]), 0))
-            )
+            db.eval(
+                db
+                , "INSERT INTO sqlar(name,mode,mtime,sz) VALUES(?,?,?,?)"
+                , list(
+                    files[i]
+                    , unclass(fstat$mode[i])
+                    , unclass(fstat$mtime[i])
+                    , 0))
         } else {
             f = rownames(fstat)[i]
             raw = readBin(f, "raw", fstat$size[i])
-            db.eval(db,
-                "INSERT INTO sqlar VALUES(?,?,?,?,sqlar_compress(?))",
-                list(list(
-                    files[i],
-                    unclass(fstat$mode[i]),
-                    unclass(fstat$mtime[i]),
-                    fstat$size[i],
-                    raw))
-            )
+            db.eval(
+                db
+                , "INSERT INTO sqlar VALUES(?,?,?,?,sqlar_compress(?))",
+                , list(
+                    files[i]
+                    , unclass(fstat$mode[i])
+                    , unclass(fstat$mtime[i])
+                    , fstat$size[i]
+                    , raw))
         }
     }
 }
@@ -36,30 +37,30 @@
     fstat = fstat[file.path(normalizePath(ignore.path), files), ]
     for (i in 1:nrow(fstat)) {
         if (fstat$isdir[i] || files[i] %in% files.mode) {
-            db.eval(db,
-                "UPDATE sqlar SET mode=?, mtime=? WHERE name=?",
-                list(list(
-                    unclass(fstat$mode[i]),
-                    unclass(fstat$mtime[i]),
+            db.eval(
+                db
+                , "UPDATE sqlar SET mode=?, mtime=? WHERE name=?"
+                , list(
+                    , unclass(fstat$mode[i])
+                    , unclass(fstat$mtime[i])
                     files[i]))
-            )
         } else {
             f = rownames(fstat)[i]
             raw = readBin(f, "raw", fstat$size[i])
-            db.eval(db,
-                "UPDATE sqlar SET
-                    mode=?,
-                    mtime=?,
-                    sz=?,
-                    data=sqlar_compress(?)
-                WHERE name=?",
-                list(list(
-                    unclass(fstat$mode[i]),
-                    unclass(fstat$mtime[i]),
-                    fstat$size[i],
-                    raw,
+            db.eval(
+                db
+                , "UPDATE sqlar SET
+                    mode=?
+                    , mtime=?
+                    , sz=?
+                    , data=sqlar_compress(?)
+                WHERE name=?"
+                , list(
+                    , unclass(fstat$mode[i])
+                    , unclass(fstat$mtime[i])
+                    , fstat$size[i]
+                    , raw
                     files[i]))
-            )
         }
     }
 }
@@ -91,7 +92,7 @@
 #' }
 #' @return None.
 #' @export
-db.sqlar.skeleton = function(db) {
+db.sqlar_skeleton = function(db) {
     stopifnot(is(db, "database"))
     db.eval(db, "
         CREATE TABLE IF NOT EXISTS sqlar(
@@ -115,7 +116,7 @@ db.sqlar.skeleton = function(db) {
 #' automatically with \code{\link{db.open}}
 #' @return None.
 #' @export
-db.sqlar.update = function(db, path) {
+db.sqlar_update = function(db, path) {
     stopifnot(is(db, "database"))
     path = normalizePath(path)
     ignore = paste(dirname(path), "/", sep="")
@@ -126,7 +127,7 @@ db.sqlar.update = function(db, path) {
     fstat = file.info(flist)
     sqlar = db.eval(db,
             "SELECT name,mtime,mode FROM sqlar WHERE name != ?",
-            list(list(topdir)), TRUE)
+            list(topdir), TRUE)
     rownames(sqlar) = sqlar$name
     deleted.files = setdiff(sqlar$name, path.names)
     added.files = setdiff(path.names, sqlar$name)
@@ -163,8 +164,8 @@ db.sqlar.update = function(db, path) {
 #' @export
 db.sqlar = function(db, path) {
     stopifnot(is(db, "database"))
-    db.sqlar.skeleton(db)
-    if (db.eval(db, "SELECT COUNT(*) FROM sqlar")[[1]] > 0)
+    db.sqlar_skeleton(db)
+    if (db.eval(db, "SELECT COUNT(*) FROM sqlar")[[1]] > 0L)
         stop("sqlar table already in use")
     path = normalizePath(path)
     ignore = paste(dirname(path), "/", sep="")
@@ -174,11 +175,7 @@ db.sqlar = function(db, path) {
     fstat = file.info(flist)
     db.eval(db,
         "INSERT INTO sqlar(name,mode,mtime,sz) VALUES(?,?,?,?)",
-        list(list(
-            topdir,
-            unclass(file.mode(path)),
-            unclass(file.mtime(path)), 0))
-    )
+        list(topdir, unclass(file.mode(path)), unclass(file.mtime(path)), 0))
     .sqlar.insert(db, fstat, gsub(ignore, "", flist, fixed=TRUE), ignore)
 }
 
@@ -204,8 +201,7 @@ db.unsqlar = function(db, path) {
         SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
         FROM sqlar ORDER BY rowid"
-        , NULL
-        , function(f) {
+        , FUN=function(f) {
             if (length(f$data) == 1 && is.na(f$data)) {
                 dir.create(f$name, mode=as.octmode(f$mode))
                 Sys.setFileTime(f$name, as.POSIXct(f$mtime, origin="1970-01-01"))
