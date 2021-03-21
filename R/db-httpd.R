@@ -68,7 +68,10 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
     handlers = attributes(sys.function())
 
     # the default method just returns REQDATA unmodified
-    REQDATA = handlers[[".beforeDispatch"]](db, REQDATA)
+    REQDATA = try(handlers[[".beforeDispatch"]](db, REQDATA))
+
+    if (inherits(REQDATA, "try-error"))
+        return (list(REQDATA, "text/plain", NULL, 500L))
 
     view = if (REQDATA[["PATH_HEAD"]] == "") {
         handlers[["default"]]
@@ -85,20 +88,23 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
         return (list(e, "text/plain", NULL, 500L))
     }
 
+    # the default leaves response unmodified
+    if (inherits(e <- handlers[[".beforeReply"]](db, REQDATA, RESPONSE))) {
+        db.response_finish(RESPONSE)
+        return (list(e, "text/plain", NULL, 500L))
+    }
+
     response = db.response_finish(RESPONSE)
 
-    # the default method just returns response unmodified
-    response = handlers[[".beforeReply"]](db, response)
-
     return (response)
 }
 
-attr(db.httpd, ".beforeDispatch") = function(db, request) {
-    return (request)
+attr(db.httpd, ".beforeDispatch") = function(db, req) {
+    return (req)
 }
 
-attr(db.httpd, ".beforeReply") = function(db, response) {
-    return (response)
+attr(db.httpd, ".beforeReply") = function(db, req, resp) {
+
 }
 
 delayedAssign("RESPONSE", db.response_init())
