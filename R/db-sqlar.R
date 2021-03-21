@@ -43,7 +43,7 @@
                 , list(
                     , unclass(fstat$mode[i])
                     , unclass(fstat$mtime[i])
-                    files[i]))
+                    , files[i]))
         } else {
             f = rownames(fstat)[i]
             raw = readBin(f, "raw", fstat$size[i])
@@ -60,7 +60,7 @@
                     , unclass(fstat$mtime[i])
                     , fstat$size[i]
                     , raw
-                    files[i]))
+                    , files[i]))
         }
     }
 }
