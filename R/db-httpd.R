@@ -68,7 +68,7 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
     handlers = attributes(sys.function())
 
     # the default method just returns REQDATA unmodified
-    REQDATA = try(handlers[[".beforeDispatch"]](db, REQDATA))
+    REQDATA = try(handlers[[".beforeDispatch"]](db, REQDATA), TRUE)
 
     if (inherits(REQDATA, "try-error"))
         return (list(REQDATA, "text/plain", NULL, 500L))
@@ -89,7 +89,10 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
     }
 
     # the default leaves response unmodified
-    if (inherits(e <- handlers[[".beforeReply"]](db, REQDATA, RESPONSE))) {
+    if (inherits(
+            e <- try(handlers[[".beforeReply"]](db, REQDATA, RESPONSE), TRUE)
+            , "try-error")
+    ) {
         db.response_finish(RESPONSE)
         return (list(e, "text/plain", NULL, 500L))
     }
