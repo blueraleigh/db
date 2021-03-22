@@ -118,11 +118,12 @@ db.open = function(file=":memory:", functions=list(), modules=list()
             , FUN = function(l) {
                 pkg = l$pkg
                 if (requireNamespace(pkg, quietly=TRUE)) {
-                    udfs = get0("functions", getNamespace(pkg), mode="function")
-                    mods = get0("modules", getNamespace(pkg), mode="function")
+                    ns = getNamespace(pkg)
+                    udfs = get0("functions", ns, mode="function")
+                    mods = get0("modules", ns, mode="function")
                     docs = NULL
                     if (register)
-                        docs = get0("views", getNamespace(pkg), mode="function")
+                        docs = get0("views", ns, mode="function")
                     for (i in seq_along(udfs)) {
                         if (!names(udfs)[i] %in% functions)
                             db.function(db, names(udfs)[i], udfs[[i]])
