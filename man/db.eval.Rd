@@ -29,7 +29,9 @@ The result of a SELECT statement or NULL if the
 statement is not a SELECT. Results will be returned as
 a matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
 from the result set. If \code{df=FALSE} subsets of the matrix will
-return lists rather than atomic vectors.
+return lists rather than atomic vectors. This is necessary because
+elements of the matrix can hold any type of object that are not
+necessarily the same from one element to the next.
 }
 \description{
 Evaluate SQL statements

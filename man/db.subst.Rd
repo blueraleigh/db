@@ -26,6 +26,9 @@ between two braces, which it treats as an expression and evaluates
 in the calling frame, substituting any returned value in place of
 the text between braces.
 }
+\note{
+
+}
 \examples{
 db = db.open()
 greeting = "world!"
@@ -36,5 +39,7 @@ db.subst(
 ) # => hello, world! what a grand world!
 bar = function() return ("bar")
 db.subst(db, "foo {bar()}") # => foo bar
+db.subst(db, "foo {bar}") # => foo # note a trailing space
+db.subst(db, "foo {paste0(deparse(bar), collapse='')}") # => foo function () return(\"bar\")
 db.close()
 }

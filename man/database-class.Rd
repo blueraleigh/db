@@ -22,6 +22,8 @@ system specific temporary folder.
 
 \item{\code{file}}{The absolute file path of the database file.}
 
+\item{\code{registered}}{A function to test if the connection is registered.}
+
 \item{\code{handle}}{An external pointer to the sqlite3 database connection.}
 }}
 
