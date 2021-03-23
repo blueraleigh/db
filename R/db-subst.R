@@ -9,6 +9,10 @@
 #' the text between braces.
 #' @return The input character string with the values returned from
 #' any expressions between braces substituted in place.
+#' @note Currently expressions do not nest. That is, the function will stop
+#' at the first closing brace it finds and try to parse the extracted
+#' expression. So "hello, {{greeting}}!" will attempt to parse `{greeting`,
+#' which will return a parse error.
 #' @examples
 #' db = db.open()
 #' greeting = "world!"
@@ -19,6 +23,8 @@
 #' ) # => hello, world! what a grand world!
 #' bar = function() return ("bar")
 #' db.subst(db, "foo {bar()}") # => foo bar
+#' db.subst(db, "foo {bar}") # => foo # note a trailing space
+#' db.subst(db, "foo {paste0(deparse(bar), collapse='')}") # => foo function () return(\"bar\")
 #' db.close()
 #' @export
 db.subst = function(db, text, env=parent.frame()) {

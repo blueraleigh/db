@@ -22,3 +22,5 @@ SEXP db_register_shadow_name(SEXP, SEXP);
 SEXP db_unregister_shadow_name(SEXP, SEXP);
 /* db_subst.c */
 SEXP db_subst(SEXP, SEXP, SEXP);
+/* db_exec.c */
+SEXP db_exec(SEXP, SEXP);

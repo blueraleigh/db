@@ -12,6 +12,7 @@ static const R_CallMethodDef CallEntries[] = {
     CALLDEF(db_unregister_shadow_name, 2),
     CALLDEF(db_create_function, 3),
     CALLDEF(db_subst, 3),
+    CALLDEF(db_exec, 2),
     {NULL, NULL, 0}
 };
 

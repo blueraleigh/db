@@ -86,7 +86,9 @@ db.prepare = function(db, stmt, params) {
 #' statement is not a SELECT. Results will be returned as
 #' a matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
 #' from the result set. If \code{df=FALSE} subsets of the matrix will
-#' return lists rather than atomic vectors.
+#' return lists rather than atomic vectors. This is necessary because
+#' elements of the matrix can hold any type of object that are not
+#' necessarily the same from one element to the next.
 #' @examples
 #' db = db.open()
 #' db.eval(db, "CREATE TABLE foo(f1 TEXT)")
@@ -102,6 +104,21 @@ db.eval = function(db, stmt, params, df=FALSE) {
     cursor = db.prepare(db, stmt, params)
     db.fetch(cursor, df)
 }
+
+
+#' Execute a SQL script
+#'
+#' Run one or more semi-colon terminated SQL statements
+#'
+#' @param db The database connection. An S4 object of class "database".
+#' @param sql The SQL script to evaluate.
+#' @return NULL
+#' @export
+db.exec = function(db, script) {
+    stopifnot(is(db, "database"))
+    .Call(db_exec, db@handle, enc2utf8(script))
+}
+
 
 #' Retrieve the rows from the result set of a query
 #'

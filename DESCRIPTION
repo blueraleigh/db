@@ -22,6 +22,7 @@ Collate: db-package.R
   db-eval.R
   db-httpd.R
   db-info.R
+  db-json.R
   db-function.R
   db-sqlar.R
   db-subst.R

@@ -218,15 +218,17 @@ db.urlpath = local({
 
 db.response_init = function() {
     resp = db.open()
-    db.eval(resp, "BEGIN")
-    db.eval(resp, "CREATE TABLE headers(tag TEXT, value TEXT)")
-    db.eval(resp, "CREATE TABLE content_type(ct TEXT)")
-    db.eval(resp, "CREATE TABLE status_code(code INTEGER)")
-    db.eval(resp, "CREATE TABLE reply(content BLOB)")
-    db.eval(resp, "INSERT INTO reply VALUES ('')")
-    db.eval(resp, "INSERT INTO content_type VALUES ('text/html')")
-    db.eval(resp, "INSERT INTO status_code VALUES (200)")
-    db.eval(resp, "COMMIT")
+    db.exec(resp, "
+        BEGIN;
+        CREATE TABLE headers(tag TEXT, value TEXT);
+        CREATE TABLE content_type(ct TEXT);
+        CREATE TABLE status_code(code INTEGER);
+        CREATE TABLE reply(content BLOB);
+        INSERT INTO reply VALUES ('');
+        INSERT INTO content_type VALUES ('text/html');
+        INSERT INTO status_code VALUES (200);
+        COMMIT;
+    ")
     reg.finalizer(
             resp@handle
             , function(handle) .Call(db_close, handle)
@@ -236,12 +238,12 @@ db.response_init = function() {
 
 
 db.response_start = function(resp) {
-    db.eval(resp, "BEGIN")
+    db.exec(resp, "BEGIN")
 }
 
 
 db.response_finish = function(resp) {
-    db.eval(resp, "COMMIT")
+    db.exec(resp, "COMMIT")
     reply = db.eval(resp, "SELECT content FROM reply")[[1]]
     headers = do.call(
         c
@@ -255,10 +257,14 @@ db.response_finish = function(resp) {
     )
     ct = db.eval(resp, "SELECT ct FROM content_type")[[1]]
     code = db.eval(resp, "SELECT code FROM status_code")[[1]]
-    db.eval(resp, "UPDATE reply SET content = ''")
-    db.eval(resp, "UPDATE content_type SET ct = 'text/html'")
-    db.eval(resp, "UPDATE status_code SET code = 200")
-    db.eval(resp, "DELETE FROM headers")
+    db.exec(resp, "
+        BEGIN;
+        UPDATE reply SET content = '';
+        UPDATE content_type SET ct = 'text/html';
+        UPDATE status_code SET code = 200;
+        DELETE FROM headers;
+        COMMIT;
+    ")
     # we can pass NULL for ct and headers and Rhttpd.c:process_request_ will
     # know to use its default values but we have to pass an integer
     # status code so if it's not set we cannot return NULL

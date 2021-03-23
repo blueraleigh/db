@@ -145,8 +145,15 @@ db.open = function(file=":memory:", functions=list(), modules=list()
     }
     if (register && file != "" && file != ":memory:")
         db.register(db)
-    if (db@registered() && length(attributes(handler)))
-        assign(db@name, handler, envir=tools:::.httpd.handlers.env)
+    if (db@registered() && length(attributes(handler))) {
+        if (nchar(db@name) < 64L) {
+            assign(db@name, handler, envir=tools:::.httpd.handlers.env)
+        } else {
+            message(paste0(
+                "Database name must be under 64 characters in length"
+                , "\n  for help documentation to work."))
+        }
+    }
     return (db)
 }
 
