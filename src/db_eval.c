@@ -77,11 +77,8 @@ SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
     sqlite3_finalize(pStmt);
     return R_NilValue;
 
-    SEXP exptr;
     cursor:
-        exptr = PROTECT(R_MakeExternalPtr(pStmt, R_NilValue, R_NilValue));
-        UNPROTECT(1);
-        return exptr;
+        return R_MakeExternalPtr(pStmt, R_NilValue, R_NilValue);
 }
 
 /*
