@@ -59,7 +59,7 @@ SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
         if (rc == SQLITE_ROW) {
             if (n > 1) {
                 sqlite3_finalize(pStmt);
-                error("db.eval with multiple parameter sets can only be used"
+                error_return("db.eval with multiple parameter sets can only be used"
                     " with INSERT/UPDATE/DELETE statements");
             }
             sqlite3_reset(pStmt);
@@ -68,7 +68,7 @@ SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
         else if (rc != SQLITE_DONE && rc != SQLITE_OK)
         {
             sqlite3_finalize(pStmt);
-            error(sqlite3_errmsg(db));
+            error_return(sqlite3_errmsg(db));
         }
         sqlite3_reset(pStmt);
         sqlite3_clear_bindings(pStmt);
@@ -148,7 +148,7 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
     if (rc != SQLITE_DONE)
     {
         UNPROTECT(nprotect);
-        error(sqlite3_errmsg(db));
+        error_return(sqlite3_errmsg(db));
     }
 
     if (nelem)
@@ -211,7 +211,7 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
                             break;
                         default:
                             UNPROTECT(nprotect);
-                            error("unexpected SEXP value in C code");
+                            error_return("unexpected SEXP value in C code");
                     }
                 }
                 root = CDR(root);
@@ -273,7 +273,7 @@ SEXP db_lapply(SEXP Db, SEXP Cur, SEXP fun, SEXP arglist)
     if (rc != SQLITE_DONE)
     {
         UNPROTECT(4);
-        error(sqlite3_errmsg(db));
+        error_return(sqlite3_errmsg(db));
     }
 
     if (nelem)

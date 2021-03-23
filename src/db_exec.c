@@ -16,10 +16,8 @@ SEXP db_exec(SEXP Db, SEXP Sql) {
     // sqlite3_exec sets errmsg to NULL if no errors occurred
 
     if (errmsg != 0) {
-        char errbuf[8192];
-        snprintf(errbuf, min(8191, strlen(errmsg)), "%s", errmsg);
+        error(errmsg);
         sqlite3_free(errmsg);
-        error(errbuf);
     }
 
     return R_NilValue;

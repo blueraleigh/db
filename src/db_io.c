@@ -25,7 +25,7 @@ SEXP db_open(SEXP dbfile, SEXP mode)
         rc = sqlite3_open_v2(CHAR(STRING_ELT(dbfile, 0)), &db,
             SQLITE_OPEN_READONLY, 0);
     if (rc != SQLITE_OK)
-        error("unable to open database");
+        error_return("unable to open database");
     rc = sqlite3_db_config(db, SQLITE_DBCONFIG_DEFENSIVE, 1, 0);
     if (rc != SQLITE_OK)
         warning("unable to open database in defensive mode");
