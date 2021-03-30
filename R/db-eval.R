@@ -103,7 +103,8 @@ db.prepare = function(db, stmt, params) {
 #' db.eval(db, "SELECT * FROM foo")
 #' db.close(db)
 #' @export
-db.eval = function(db, stmt, params, df=FALSE) {
+db.eval = function(db, stmt, params
+        , df=getOption("DBPKG_DATAFRAME_RETURN", FALSE)) {
     stopifnot(is(db, "database"))
     cursor = db.prepare(db, stmt, params)
     db.fetch(cursor, df)
