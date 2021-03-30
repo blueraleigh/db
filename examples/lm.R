@@ -26,7 +26,8 @@ callbacks = list(
                 # formula is the first constaint arg
                 argv.index = c(1L, 2L)
             } else {
-                # data is the first constaint arg
+                # data is the first constaint arg (but we want to pass it
+                # as second arg to .filter)
                 argv.index = c(2L, 1L)
             }
             return (list(
@@ -38,7 +39,7 @@ callbacks = list(
             )
         } else {
             return (list(
-                args = rep(as.integer(NA), length(constraints))
+                args = rep(NA_integer_, length(constraints))
                 , idxnum = 0L
                 , idxname = ""
                 , issorted = FALSE
@@ -48,7 +49,9 @@ callbacks = list(
     },
 
     .filter = function(db, table, env, idxnum, idxname, ...) {
-
+        assign("rowid", 1L, envir=env)
+        if (exists("formula", envir=env, inherits=FALSE))
+            rm(formula, data, .formula, .data, envir=env)
         if (idxnum == 1L) {
             assign("formula", ...elt(1L), envir=env)
             assign(".formula", as.formula(...elt(1L)), envir=env)
@@ -64,25 +67,29 @@ callbacks = list(
             assign("data", ...elt(2), envir=env)
             assign(".data", .data, envir=env)
         }
-        assign("rowid", 1L, envir=env)
+
         return (NULL)
     },
 
     .column = function(db, table, env, j) {
         if (j == 1L) {
-            return (lm(get(".formula", envir=env), get(".data", envir=env)))
+            formula = get0(".formula", env)
+            data = get0(".data", env)
+            if (!is.null(formula) && !is.null(data))
+                return (lm(formula, data))
+            return (NULL)
         } else if (j == 2L) {
-            return (get("formula", envir=env))
+            return (get0("formula", env))
         } else if (j == 3L) {
-            return (get("data", envir=env))
+            return (get0("data", env))
         } else if (j == 0L) {
             return (get("rowid", envir=env))
         }
-        return (NA)
+        return (NULL)
     }
 )
 
-register_lm_virtual_table = new.virtualtable("lm", callbacks)
+register_lm_virtual_table = db.virtualtable("lm", callbacks)
 
 db = db.open()
 
@@ -94,10 +101,10 @@ db.eval(db, "INSERT INTO cars VALUES(?,?)", cars)
 
 # select * from lm where formula='speed ~ dist' and data='cars'
 db.eval(db,
-    "select * from lm('speed ~ dist', 'cars')")
+    "select * from lm('speed ~ dist', 'cars')")[[1]]
 
 db.eval(db,
-    "select * from lm('speed ~ dist', '(select * from cars)')")
+    "select * from lm('speed ~ dist', '(select * from cars)')")[[1]]
 
 db.eval(db, "create view foo as select * from lm('speed ~ dist', 'cars')")
-db.eval(db, "select * from foo")
+db.eval(db, "select * from foo")[[1]]
