@@ -159,7 +159,8 @@ setMethod(
 #'
 #' @param name The name of the virtual table module
 #' @param methods A named list of functions implementing the virtual table
-#' methods. See details.
+#' @param env An environment in which virtuabl table methods will be
+#' evaluated.
 #' @details A virtual table acts like a regular database table except that
 #' SQL statements invoke callback methods defined by the virtual table
 #' module. In the current implementation there are 13 methods that can be
