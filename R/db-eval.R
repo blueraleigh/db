@@ -49,7 +49,11 @@ db.prepare = function(db, stmt, params) {
     stopifnot(is(db, "database"))
     params = db.param(params)
     npars = length(params[[1L]])
-    nbind = if ((nbind <- gregexpr("\\?", stmt)[[1]])[1L] > 0) {
+    # match all ? that are not between quotes
+    # we do so by matching all ? that are followed by
+    # an even number of quotes (single or double)
+    re="\\?(?=(?:[^'\"]*['\"][^'\"]*['\"])*[^'\"]*\\Z)"
+    nbind = if ((nbind <- gregexpr(re, stmt, perl=TRUE)[[1]])[1L] > 0) {
         length(nbind)
     } else {
         0L
