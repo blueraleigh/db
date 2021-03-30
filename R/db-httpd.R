@@ -144,68 +144,40 @@ db.ui = db.help
 #' @return A character string.
 #' @export
 db.urlpath = local({
-    urlpath_rmq = function(path) {
-        stop = tail(gregexpr("?", path, fixed=TRUE)[[1]], 1) - 1L
-        if (stop > 0)
-            path = substr(path, 1, stop)
-        return (path)
-    }
 
-    urlpath_normalize = function(path) {
-        path = urlpath_rmq(path)
-        path = paste0(paste0("/", path), "/")
-        path = gsub("//", "/", path, fixed=TRUE)
-        return (path)
-    }
+    re = "(?:^|(?<=/))([a-zA-Z0-9\\._~-]+)(?=(?:[/?]|$))"
 
     urlpath_root = function(path) {
-        matches = gregexpr("/", path, fixed=TRUE)[[1]]
-        if (length(matches) < 3)
-            return (path)
-        stop = matches[3] - 1
-        return (substr(path, 1, stop))
+        matches = regmatches(path, gregexpr(re, path, perl=TRUE))[[1]]
+        return (paste0("/", paste0(matches[1:2], collapse="/")))
     }
 
     urlpath_name = function(path) {
         # /custom/name/
-        matches = gregexpr("/", path, fixed=TRUE)[[1]]
-        if (length(matches) < 3)
-            return ("")
-        start = matches[2] + 1
-        stop = matches[3] - 1
-        return (substr(path, start, stop))
+        matches = regmatches(path, gregexpr(re, path, perl=TRUE))[[1]]
+        return (matches[2])
     }
 
     urlpath_head = function(path) {
         # /custom/name/head/
-        matches = gregexpr("/", path, fixed=TRUE)[[1]]
-        if (length(matches) < 4)
+        matches = regmatches(path, gregexpr(re, path, perl=TRUE))[[1]]
+        if (length(matches) < 3)
             return ("")
-        start = matches[3] + 1
-        stop = matches[4] - 1
-        return (substr(path, start, stop))
+        return (matches[3])
     }
 
     urlpath_tail = function(path) {
         # /custom/name/head/tail/tail/
-        matches = gregexpr("/", path, fixed=TRUE)[[1]]
-        if (length(matches) < 5)
-            return ("")
-        start = matches[4] + 1
-        stop = matches[length(matches)] - 1
-        return (substr(path, start, stop))
+        matches = regmatches(path, gregexpr(re, path, perl=TRUE))[[1]]
+        return (paste0(matches[-(1:3)], collapse="/"))
     }
 
     urlpath_info = function(path) {
-        hd = urlpath_head(path)
-        tl = urlpath_tail(path)
-        if (tl != "")
-            return (paste0(hd, "/", tl))
-        return (hd)
+        matches = regmatches(path, gregexpr(re, path, perl=TRUE))[[1]]
+        return (paste0(matches[-(1:2)], collapse="/"))
     }
 
     function(path, what) {
-        path = urlpath_normalize(path)
         switch(what,
             root=urlpath_root,
             info=urlpath_info,
