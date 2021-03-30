@@ -25,7 +25,7 @@
 #' db.subst(db, "foo {bar()}") # => foo bar
 #' db.subst(db, "foo {bar}") # => foo # note a trailing space
 #' db.subst(db, "foo {paste0(deparse(bar), collapse='')}") # => foo function () return(\"bar\")
-#' db.close()
+#' db.close(db)
 #' @export
 db.subst = function(db, text, env=parent.frame()) {
     stopifnot(is(db, "database"))
