@@ -33,7 +33,7 @@ db.schema = function(db, table) {
         stmt = sprintf(
             "SELECT name,sql AS schema FROM sqlite_master WHERE name IN (%s)",
             paste0(rep("?", ntbl), collapse=","))
-        return (db.eval(db, stmt, table, TRUE))
+        return (db.eval(db, stmt, as.list(table), TRUE))
     }
 }
 
