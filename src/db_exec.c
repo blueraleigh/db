@@ -2,9 +2,6 @@
 #include <Rinternals.h>
 #include "sqlite3.h"
 
-#ifndef min
-#define min(a, b) (a<b?a:b)
-#endif
 
 SEXP db_exec(SEXP Db, SEXP Sql) {
 
