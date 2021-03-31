@@ -49,7 +49,8 @@
 #' the name of the database file.
 #' @export
 db.open = function(file=":memory:", functions=list(), modules=list()
-    , views=list(), register=TRUE, mode=c("r+", "r")) {
+    , views=list(), register=TRUE, mode=c("r+", "r"))
+{
     stopifnot(is.character(file))
     stopifnot(is.list(functions))
     stopifnot(is.list(modules))
@@ -91,7 +92,7 @@ db.open = function(file=":memory:", functions=list(), modules=list()
     if (length(modules) && is.null(names(modules)))
         stop("modules list must be named")
     if (length(views) && is.null(names(views)))
-        stop("handlers list must be named")
+        stop("views list must be named")
     handler = db.httpd
     for (i in seq_along(functions)) {
         FUN = functions[[i]]
