@@ -59,7 +59,8 @@ SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
         if (rc == SQLITE_ROW) {
             if (n > 1) {
                 sqlite3_finalize(pStmt);
-                error_return("db.eval with multiple parameter sets can only be used"
+                error_return(
+                    "db.eval with multiple parameter sets can only be used"
                     " with INSERT/UPDATE/DELETE statements");
             }
             sqlite3_reset(pStmt);
@@ -122,6 +123,7 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
     SEXP root = PROTECT(list1(buf = allocVector(VECSXP, 5000)));
     SEXP tail = root;
     SEXP colnames;
+    SEXP rownames;
     SEXP dims;
 
     rc = sqlite3_step(pStmt);
@@ -161,24 +163,35 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
             while (root != R_NilValue)
             {
                 size = (CDR(root) == R_NilValue) ? count : 5000;
-                for (i = 0; i < size; ++i)
-                    SET_VECTOR_ELT(res, end++, VECTOR_ELT(CAR(root), i));
+                for (i = 0; i < size; ++i, ++end) {
+                    // results are currently stored as row-major array
+                    // with 'ncol' columns and 'nrow' rows.
+                    // 'end' is the index position in that array
+                    // here is the column index ...
+                    k = end % ncol;
+                    // ... and here is the row index
+                    j = (end - k) / ncol;
+                    // to convert 'end' to an index position in a
+                    // column-major array we use
+                    //   row + col * nrow = end (col-major)
+                    // instead of
+                    //   col + row * ncol = end (row-major)
+                    SET_VECTOR_ELT(res, j+k*nrow, VECTOR_ELT(CAR(root), i));
+                }
                 root = CDR(root);
             }
             dims = PROTECT(allocVector(INTSXP, 2)); ++nprotect;
-            // R interprets arrays in column-major order but the query results
-            // are stored as an array in row-major order, so tell it the number
-            // of rows is the number of columns and then call transpose
-            INTEGER(dims)[0] = ncol;
-            INTEGER(dims)[1] = nrow;
+            INTEGER(dims)[0] = nrow;
+            INTEGER(dims)[1] = ncol;
             setAttrib(res, R_DimSymbol, dims);
-            setAttrib(res, R_DimNamesSymbol, list2(colnames, R_NilValue));
+            setAttrib(res, R_DimNamesSymbol, list2(R_NilValue, colnames));
             UNPROTECT(nprotect);
-            return eval(lang2(install("t.default"), res), R_GlobalEnv);
+            return res;
         }
         else
         {
             SEXP res = PROTECT(allocVector(VECSXP, ncol)); ++nprotect;
+            SEXP rownames = PROTECT(allocVector(INTSXP, nrow)); ++nprotect;
             for (j = 0; j < ncol; ++j)
                 SET_VECTOR_ELT(res, j, allocVector(
                     TYPEOF(VECTOR_ELT(CAR(root), j)), nrow));
@@ -187,7 +200,8 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
                 size = (CDR(root) == R_NilValue) ? count : 5000;
                 for (i = 0; i < size; ++i, ++end) {
                     j = end % ncol;
-                    k = (end - j) / ncol; // col + row * ncol = end (row-major)
+                    k = (end - j) / ncol;
+                    INTEGER(rownames)[k] = k + 1;
                     switch (TYPEOF(VECTOR_ELT(res, j))) {
                         case INTSXP:
                             INTEGER(VECTOR_ELT(res, j))[k] =
@@ -217,8 +231,10 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
                 root = CDR(root);
             }
             setAttrib(res, R_NamesSymbol, colnames);
+            setAttrib(res, R_ClassSymbol, mkString("data.frame"));
+            setAttrib(res, mkString("row.names"), rownames);
             UNPROTECT(nprotect);
-            return eval(lang2(install("as.data.frame.list"), res), R_GlobalEnv);
+            return res;
         }
     }
     UNPROTECT(nprotect);
