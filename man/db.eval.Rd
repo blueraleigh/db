@@ -4,7 +4,7 @@
 \alias{db.eval}
 \title{Evaluate SQL statements}
 \usage{
-db.eval(db, stmt, params, df = FALSE)
+db.eval(db, stmt, params, df = getOption("DBPKG_DATAFRAME_RETURN", FALSE))
 }
 \arguments{
 \item{db}{The database connection. An S4 object of class "database".}

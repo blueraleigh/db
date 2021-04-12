@@ -9,8 +9,10 @@ db.virtualtable(name, methods, env = new.env())
 \arguments{
 \item{name}{The name of the virtual table module}
 
-\item{methods}{A named list of functions implementing the virtual table
-methods. See details.}
+\item{methods}{A named list of functions implementing the virtual table}
+
+\item{env}{An environment in which virtuabl table methods will be
+evaluated.}
 }
 \value{
 A function that can be used to register the virtual table
@@ -295,7 +297,7 @@ function(db, table, env, idxnum, idxname, ...)
 
 The \code{.filter} function sets the rowid to the rowid of
 the first row of data in the result set. For starters, just leave this
-function set to its default, which resets the "rid" variable in \code{env}
+function set to its default, which resets the "rowid" variable in \code{env}
 to 1.
 
 The arguments are communicated to \code{.filter} by SQLite. Arguments
