@@ -392,7 +392,7 @@ setMethod(
 #'
 #' The \code{.filter} function sets the rowid to the rowid of
 #' the first row of data in the result set. For starters, just leave this
-#' function set to its default, which resets the "rid" variable in \code{env}
+#' function set to its default, which resets the "rowid" variable in \code{env}
 #' to 1.
 #'
 #' The arguments are communicated to \code{.filter} by SQLite. Arguments
