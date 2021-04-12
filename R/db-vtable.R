@@ -1,10 +1,9 @@
-# TODO:
-# virtual tables need to be able to support an arbitrary number of open
-# cursors. currently this implementation can only support a single open
-# cursor because the environment used to share data among methods lives
-# with the virtual table module, and a cursor just gets a copy of that.
-# so any changes one cursor makes (such as incrementing the rowid) will
-# will impact all other cursors. bad. cursors need to be independent.
+# currently this implementation is not thread-safe because the
+# environment used to share data among methods lives with
+# the virtual table module, and a cursor just gets a reference
+# to that. so any changes one cursor makes (such as incrementing
+# the rowid) will impact all other cursors that are derived
+# from the same virtual table module object.
 .check.method.signature = function(method, FUN) {
     stopifnot(is.function(FUN))
     check = switch(method,
