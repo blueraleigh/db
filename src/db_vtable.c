@@ -38,7 +38,7 @@ static SEXP module_expression_eval(
         eval(lang2(install("str2lang"), mkString(expr)), R_GlobalEnv));
     SETCADR(R_fcall, module_db(module));
     SEXP result = PROTECT(R_tryEvalSilent(R_fcall, module_env(module), err));
-    UNPROTECT(3);
+    UNPROTECT(2);
     return result;
 }
 
