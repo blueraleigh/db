@@ -18,6 +18,51 @@
 #' the database connection, a named list of request data, and a response
 #' object that it is expected to fill out using the \code{db.reply*}
 #' family of functions.
+#' @examples
+#' \dontrun {
+#'
+#' index = function(db, req, resp) {
+#'     db.reply(resp, db.subst(db,
+#'     '
+#'        <html>
+#'        <body>
+#'        <h1>Welcome!</h1>
+#'        <ul>
+#'        <li><a href="{req$PATH_ROOT}/page1">page 1</a></li>
+#'        <li><a href="{req$PATH_ROOT}/page2">page 2</a></li>
+#'        <ul>
+#'        </body>
+#'        </html>
+#'    '))
+#' }
+#' page1 = function(db, req, resp) {
+#'     db.reply(resp, db.subst(db, '
+#'         <html>
+#'         <body>
+#'         <a href="{req$PATH_ROOT}">hello, world!</a>
+#'         </body>
+#'         </html>
+#'     '))
+#' }
+#' page2 = function(db, req, resp) {
+#'     db.reply(resp, db.subst(db, '
+#'         <html>
+#'         <body>
+#'         <a href="{req$PATH_ROOT}">take me home, please.</a>
+#'         </body>
+#'         </html>
+#'     '))
+#' }
+#'
+#' db = db.open("db.sqlite",
+#'     views=list(default=index, page1=page1, page2=page2))
+#'
+#' db.ui(db)
+#'
+#' db.close(db)
+#' unlink("db.sqlite")
+#'
+#' }
 #' @export
 db.httpd = function(path, reqquery, reqbody, reqheaders) {
     # db.open will attach handler attributes to this function and
