@@ -1,16 +1,17 @@
-.sqlar.delete = function(db, files) {
-    stmt = sprintf("DELETE FROM sqlar WHERE name IN (%s)",
-                paste0(rep("?", length(files)), collapse=","))
+.sqlar.delete = function(db, name, files) {
+    stmt = sprintf("DELETE FROM \"%s\" WHERE name IN (%s)",
+                name, paste0(rep("?", length(files)), collapse=","))
     db.eval(db, stmt, as.list(files))
 }
 
-.sqlar.insert = function(db, fstat, files, ignore.path) {
+.sqlar.insert = function(db, name, fstat, files, ignore.path) {
     fstat = fstat[file.path(normalizePath(ignore.path), files), ]
     for (i in 1:nrow(fstat)) {
         if (fstat$isdir[i]) {
             db.eval(
                 db
-                , "INSERT INTO sqlar(name,mode,mtime,sz) VALUES(?,?,?,?)"
+                , sprintf(
+                    "INSERT INTO \"%s\"(name,mode,mtime,sz) VALUES(?,?,?,?)", name)
                 , list(
                     files[i]
                     , unclass(fstat$mode[i])
@@ -21,7 +22,8 @@
             raw = readBin(f, "raw", fstat$size[i])
             db.eval(
                 db
-                , "INSERT INTO sqlar VALUES(?,?,?,?,sqlar_compress(?))",
+                , sprintf(
+                    "INSERT INTO \"%s\" VALUES(?,?,?,?,sqlar_compress(?))", name)
                 , list(
                     files[i]
                     , unclass(fstat$mode[i])
@@ -32,14 +34,14 @@
     }
 }
 
-.sqlar.update = function(db, fstat, files.content, files.mode, ignore.path) {
+.sqlar.update = function(db, name, fstat, files.content, files.mode, ignore.path) {
     files = union(files.content, files.mode)
     fstat = fstat[file.path(normalizePath(ignore.path), files), ]
     for (i in 1:nrow(fstat)) {
         if (fstat$isdir[i] || files[i] %in% files.mode) {
             db.eval(
                 db
-                , "UPDATE sqlar SET mode=?, mtime=? WHERE name=?"
+                , sprintf("UPDATE \"%s\" SET mode=?, mtime=? WHERE name=?", name)
                 , list(
                     , unclass(fstat$mode[i])
                     , unclass(fstat$mtime[i])
@@ -49,12 +51,12 @@
             raw = readBin(f, "raw", fstat$size[i])
             db.eval(
                 db
-                , "UPDATE sqlar SET
+                , sprintf("UPDATE \"%s\" SET
                     mode=?
                     , mtime=?
                     , sz=?
                     , data=sqlar_compress(?)
-                WHERE name=?"
+                WHERE name=?", name)
                 , list(
                     , unclass(fstat$mode[i])
                     , unclass(fstat$mtime[i])
@@ -78,6 +80,7 @@
 #' Initialize the SQLite archive schema
 #'
 #' @param db The database connection. S4 object of class "database".
+#' @param name The name of the SQLite archive table.
 #' @details This has a side effect of creating a table named "sqlar"
 #' in the database file pointed to by \code{db}. The sqlar table has
 #' the following schema:
@@ -92,21 +95,22 @@
 #' }
 #' @return None.
 #' @export
-db.sqlar_skeleton = function(db) {
+db.sqlar_skeleton = function(db, name) {
     stopifnot(is(db, "database"))
-    db.eval(db, "
-        CREATE TABLE IF NOT EXISTS sqlar(
+    db.eval(db, sprintf("
+        CREATE TABLE IF NOT EXISTS \"%s\"(
             name  TEXT PRIMARY KEY, -- name of the file
             mode  INTEGER,          -- access permissions
             mtime INTEGER,          -- last modification time
             sz    INTEGER,          -- original file size
             data  BLOB              -- (un)compressed content
-        );")
+        );", name))
 }
 
 #' Update the content of a SQLite archive
 #'
 #' @param db The database connection. S4 object of class "database".
+#' @param name The name of the SQLite archive table.
 #' @param path The path to the top-level directory of the archive.
 #' @details This will update the sqlar table in the database to reflect
 #' any changes made to the files under \code{path} (including file
@@ -116,7 +120,7 @@ db.sqlar_skeleton = function(db) {
 #' automatically with \code{\link{db.open}}
 #' @return None.
 #' @export
-db.sqlar_update = function(db, path) {
+db.sqlar_update = function(db, name, path) {
     stopifnot(is(db, "database"))
     path = normalizePath(path)
     ignore = paste(dirname(path), "/", sep="")
@@ -126,7 +130,7 @@ db.sqlar_update = function(db, path) {
     path.names = gsub(ignore, "", flist, fixed=TRUE)
     fstat = file.info(flist)
     sqlar = db.eval(db,
-            "SELECT name,mtime,mode FROM sqlar WHERE name != ?",
+            sprintf("SELECT name,mtime,mode FROM \"%s\" WHERE name != ?", name),
             list(topdir), TRUE)
     rownames(sqlar) = sqlar$name
     deleted.files = setdiff(sqlar$name, path.names)
@@ -140,11 +144,11 @@ db.sqlar_update = function(db, path) {
         structure(fstat$mode, names=path.names))
     changed.mode.only = setdiff(changed.mode, changed.content)
     if (length(deleted.files))
-        .sqlar.delete(db, deleted.files)
+        .sqlar.delete(db, name, deleted.files)
     if (length(added.files))
-        .sqlar.insert(db, fstat, added.files, ignore)
+        .sqlar.insert(db, name, fstat, added.files, ignore)
     if (length(changed.content) || length(changed.mode.only))
-        .sqlar.update(db, fstat, changed.content, changed.mode.only, ignore)
+        .sqlar.update(db, name, fstat, changed.content, changed.mode.only, ignore)
 }
 
 #' Create a SQLite archive
@@ -152,6 +156,7 @@ db.sqlar_update = function(db, path) {
 #' For additional details goto \url{https://sqlite.org/sqlar.html}.
 #'
 #' @param db The database connection. S4 object of class "database".
+#' @param name The name of the SQLite archive table.
 #' @param path The path to the top-level directory of the archive.
 #' @details This will create a table named "sqlar" in the database. The
 #' table will hold the gzip compressed content of all files and
@@ -162,10 +167,10 @@ db.sqlar_update = function(db, path) {
 #' @return None.
 #' @seealso \code{\link{db.sqlar.skeleton}}
 #' @export
-db.sqlar = function(db, path) {
+db.sqlar = function(db, name, path) {
     stopifnot(is(db, "database"))
-    db.sqlar_skeleton(db)
-    if (db.eval(db, "SELECT COUNT(*) FROM sqlar")[[1]] > 0L)
+    db.sqlar_skeleton(db, name)
+    if (db.eval(db, sprintf("SELECT COUNT(*) FROM \"%s\"", name))[[1]] > 0L)
         stop("sqlar table already in use")
     path = normalizePath(path)
     ignore = paste(dirname(path), "/", sep="")
@@ -174,14 +179,26 @@ db.sqlar = function(db, path) {
         path, recursive=TRUE, include.dirs=TRUE, full.names=TRUE)
     fstat = file.info(flist)
     db.eval(db,
-        "INSERT INTO sqlar(name,mode,mtime,sz) VALUES(?,?,?,?)",
+        sprintf("INSERT INTO \"%s\"(name,mode,mtime,sz) VALUES(?,?,?,?)", name),
         list(topdir, unclass(file.mode(path)), unclass(file.mtime(path)), 0))
-    .sqlar.insert(db, fstat, gsub(ignore, "", flist, fixed=TRUE), ignore)
+    .sqlar.insert(db, name, fstat, gsub(ignore, "", flist, fixed=TRUE), ignore)
+}
+
+#' Return the root directory of a SQLite archive
+#'
+#' @param db The database connection. S4 object of class "database".
+#' @param name The name of the SQLite archive table.
+db.sqlar_root = function(db, name) {
+    db.eval(db,
+        sprintf(
+            "SELECT name FROM \"%s\" WHERE sz=0 ORDER BY rowid ASC LIMIT 1"
+            , name))[[1]]
 }
 
 #' Unpack a SQLite archive.
 #'
 #' @param db The database connection. S4 object of class "database".
+#' @param name The name of the SQLite archive table.
 #' @param path The path to unpack the archive under.
 #' @details This will read the sqlar table in the database and write out
 #' its content into a filesystem hierarchy under \code{path}.
@@ -190,17 +207,17 @@ db.sqlar = function(db, path) {
 #' automatically with \code{\link{db.open}}
 #' @return None.
 #' @export
-db.unsqlar = function(db, path) {
+db.unsqlar = function(db, name, path) {
     stopifnot(is(db, "database"))
     wd = getwd()
     on.exit(setwd(wd))
     setwd(path)
     db.lapply(
         db
-        , "
+        , sprintf("
         SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
-        FROM sqlar ORDER BY rowid"
+        FROM \"%s\" ORDER BY rowid", name)
         , FUN=function(f) {
             if (length(f$data) == 1 && is.na(f$data)) {
                 dir.create(f$name, mode=as.octmode(f$mode))
