@@ -1,0 +1,16 @@
+Package: db.gmm
+Type: Package
+Title: Gaussian mixture models for SQLite
+Version: 1.0
+Date: 2021-04-13
+Author: Michael C. Grundler
+Maintainer: Michael C. Grundler <mcgrundler@gmail.com>
+Description: Package db.gmm provides a SQLite interface
+  for fitting simple Gaussian mixture models to real-valued
+  data.
+Depends: R (>= 3.5.0), db
+Imports: methods, stats
+NeedsCompilation: yes
+License: CC0
+Collate: gmm.R
+  db-gmm.R

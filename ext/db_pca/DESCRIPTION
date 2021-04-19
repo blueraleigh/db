@@ -1,0 +1,15 @@
+Package: db.pca
+Type: Package
+Title: SQLite for Principal Components Analysis
+Version: 1.0
+Date: 2021-04-13
+Author: Michael C. Grundler
+Maintainer: Michael C. Grundler <mcgrundler@gmail.com>
+Description: Package db.pca provides a SQLite interface
+  for dimensionality reduction via principal components
+  analysis.
+Depends: R (>= 3.5.0), db
+Imports: methods, stats
+NeedsCompilation: no
+License: CC0
+Collate: db-pca.R

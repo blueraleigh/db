@@ -1,0 +1,60 @@
+library(dbpkg.gmm)
+
+
+db = db.open()
+
+db.eval(db, 'create table iris (sl real, sw real, pl real, pw real, sp text)')
+db.eval(db, 'insert into iris values(?,?,?,?,?)', iris)
+
+#db.eval(db, 'select * from iris', df=TRUE)
+
+register_gmm_module(db)
+
+
+db.eval(db,
+    "create virtual table mygmm using gmm(data=iris, k=3)"
+)
+
+db.eval(db,
+    "create virtual table gmm using gmm"
+)
+
+options(DBPKG_SIMPLIFY_RETURN=FALSE)
+
+db.eval(db, 'select * from mygmm')[[1]]
+
+db.eval(db, "select * from gmm where data='iris' and k=3")[[1]]
+
+
+WITH training AS (
+    SELECT
+        *
+    FROM
+        foo
+    WHERE
+        species
+    IN
+        ()
+),
+validation AS (
+    SELECT
+        *
+    FROM
+        foo
+    WHERE
+        species
+    NOT IN
+        (SELECT species FROM training_data)
+)
+model AS (
+    SELECT
+        *
+    FROM
+        gmm
+    WHERE
+        data='training'
+    AND
+        k=3
+),
+SELECT * FROM predict_gmm(new_data, model)
+
