@@ -35,7 +35,7 @@ static SEXP process_row(sqlite3_stmt *stmt)
     return R_NilValue;
 }
 
-
+/*
 SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
 {
     int i = 0;
@@ -80,6 +80,55 @@ SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
 
     cursor:
         return R_MakeExternalPtr(pStmt, R_NilValue, R_NilValue);
+}
+*/
+
+SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
+{
+    int i = 0;
+    int j;
+    int rc;
+    int n = length(params);  // n will always be at least 1 b/c list(list())
+    int p = length(VECTOR_ELT(params, 0));
+    SEXP par;
+    const char *stmt = CHAR(STRING_ELT(Stmt, 0));
+    sqlite3 *db = (sqlite3 *)R_ExternalPtrAddr(Db);
+    sqlite3_stmt *pStmt;
+    sqlite3_prepare_v2(db, stmt, -1, &pStmt, NULL);
+    if (sqlite3_stmt_readonly(pStmt)) {
+        if (n > 1) {
+            sqlite3_finalize(pStmt);
+            error_return(
+                "db.eval with multiple parameter sets can only be used"
+                " with INSERT/UPDATE/DELETE statements");
+        }
+        for (j = 0; j < p; ++j)
+        {
+            par = PROTECT(VECTOR_ELT(VECTOR_ELT(params, 0), j));
+            convert_sexp_to_parameter(par, pStmt, j+1);
+            UNPROTECT(1);
+        }
+        return R_MakeExternalPtr(pStmt, R_NilValue, R_NilValue);
+    }
+    do {
+        for (j = 0; j < p; ++j)
+        {
+            par = PROTECT(VECTOR_ELT(VECTOR_ELT(params, i), j));
+            convert_sexp_to_parameter(par, pStmt, j+1);
+            UNPROTECT(1);
+        }
+        rc = sqlite3_step(pStmt);
+        if (rc != SQLITE_DONE && rc != SQLITE_OK)
+        {
+            sqlite3_finalize(pStmt);
+            error_return(sqlite3_errmsg(db));
+        }
+        sqlite3_reset(pStmt);
+        sqlite3_clear_bindings(pStmt);
+    } while (++i < n);
+
+    sqlite3_finalize(pStmt);
+    return R_NilValue;
 }
 
 /*
