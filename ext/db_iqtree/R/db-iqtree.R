@@ -2,56 +2,45 @@ xCreate = function(db, table, ...) {
     args = substitute(expression(...))
     schema = "
     CREATE TABLE x(
-        output TEXT
-        , data HIDDEN TEXT -- sqlar table containing sequence data
-        , cmd  HIDDEN TEXT -- arguments to the iqtree
-        , exe  HIDDEN TEXT -- path to iqtree executable
+        result TEXT
+        , input  HIDDEN TEXT  -- sqlar table with input data
+        , output HIDDEN TEXT  -- sqlar table to hold output data
+        , cmd    HIDDEN TEXT  -- arguments to the iqtree
+        , exe    HIDDEN TEXT  -- path to iqtree executable
     );
     "
-    db.sqlar_skeleton(db, "iqtree_output")
-    db.eval(db, "
-        INSERT INTO iqtree_output(name,mode,mtime,sz)
-        VALUES('iqtree_output',?,?,0)"
-        , list(
-            493L
-            , unclass(as.POSIXct(Sys.time(), origin="1970-01-01"))
-        )
-    )
+
     env = new.env()
     assign("schema", schema, envir=env)
     if (length(args) > 1) {
-        if (!is.null(args$data))
-            assign("data", args$data, envir=env)
+        if (!is.null(args$input))
+            assign("input", args$input, envir=env)
+        if (!is.null(args$output)) {
+            assign("output", args$output, envir=env)
+            if (!db.exists(db, args$output)) {
+                db.sqlar_skeleton(db, args$output)
+                db.eval(db, sprintf("
+                    INSERT INTO \"%s\"(name,mode,mtime,sz)
+                    VALUES('iqtree_output',?,?,0)", output)
+                    , list(
+                        493L
+                        , as.integer(unclass(as.POSIXct(Sys.time(), origin="1970-01-01")))
+                    )
+                )
+            }
+        }
         if (!is.null(args$cmd))
             assign("cmd", args$cmd, envir=env)
         if (!is.null(args$exe))
             assign("exe", args$exe, envir=env)
     }
+
     return (env)
 }
 
 
 xConnect = function(db, table, ...) {
-    args = substitute(expression(...))
-    schema = "
-    CREATE TABLE x(
-        output TEXT
-        , data HIDDEN TEXT -- sqlar table containing sequence data
-        , cmd  HIDDEN TEXT -- arguments to the iqtree
-        , exe  HIDDEN TEXT -- path to iqtree executable
-    );
-    "
-    env = new.env()
-    assign("schema", schema, envir=env)
-    if (length(args) > 1) {
-        if (!is.null(args$data))
-            assign("data", args$data, envir=env)
-        if (!is.null(args$cmd))
-            assign("cmd", args$cmd, envir=env)
-        if (!is.null(args$exe))
-            assign("exe", args$exe, envir=env)
-    }
-    return (env)
+    xCreate(db, table, ...)
 }
 
 
@@ -69,27 +58,41 @@ xBestIndex = function(db, table, env, constraints, orderbys) {
 
     ccols = sapply(constraints, "[[", 1L)
 
+    use = ccols != 1L
+
     # set a bit for each column that has a constraint
     idxnum = Reduce(function(a, b) {
         bitwOr(a, bitwShiftL(1, b-1))
-    }, ccols, 0L)
+    }, ccols[use], 0L)
 
-    # idxnum     # constraint columns
-    # 2          2
-    # 4          3
-    # 8          4
-    # 6          2,3
-    # 10         2,4
-    # 12         3,4
-    # 14         2,3,4
-    # 0          none
+    # constraint columns   # idxnum
+    # 2                    2
+    # 3                    4
+    # 4                    8
+    # 5                    16
+    # 2,3                  6
+    # 2,4                  10
+    # 2,5                  18
+    # 3,4                  12
+    # 3,5                  20
+    # 4,5                  24
+    # 2,3,4                14
+    # 2,3,5                22
+    # 2,4,5                26
+    # 3,4,5                28
+    # 2,3,4,5              30
+    # none                 0
+
+    argv = ccols
+    argv[!use] = NA_integer_
+    argv[use] = order(argv[use])
 
     return (list(
-        argv=order(ccols)
+        argv=argv
         , idxnum=idxnum
         , idxname=as.character(idxnum)
         , issorted=FALSE
-        , cost=25)
+        , cost=1)
     )
 }
 
@@ -97,25 +100,48 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
 
     if (idxnum == 0L)
         idxname = "0"
-    sqlar_table = switch(idxname
+    input = switch(idxname
         , "2"=
         , "6"=
         , "10"=
-        , "14"=...elt(1L)
-        , env$data
+        , "14"=
+        , "18"=
+        , "22"=
+        , "26"=
+        , "30"=...elt(1L)
+        , env$input
+    )
+    output = switch(idxname
+        , "4"=
+        , "12"=
+        , "20"=
+        , "28"=...elt(1L)
+        , "6"=
+        , "14"=
+        , "22"=
+        , "30"=...elt(2L)
+        , env$output
     )
     cmd = switch(idxname
-        , "4"=
-        , "12"=...elt(1L)
-        , "6"=
-        , "14"=...elt(2L)
+        , "8"=
+        , "24"=...elt(1L)
+        , "10"=
+        , "12"=
+        , "26"=
+        , "28"=...elt(2L)
+        , "14"=
+        , "30"=...elt(3L)
         , env$cmd
     )
     exe = switch(idxname
-        , "8"=...elt(1L)
-        , "10"=
-        , "12"=...elt(2L)
-        , "14"=...elt(3L)
+        , "16"=...elt(1L)
+        , "18"=
+        , "20"=
+        , "24"=...elt(2L)
+        , "22"=
+        , "26"=
+        , "28"=...elt(3L)
+        , "30"=...elt(4L)
         , env$exe
     )
 
@@ -124,32 +150,59 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
 
     if (exe == "")
         stop("unable to find iqtree2")
-    if (is.null(sqlar_table))
-        stop("no input data specified")
+    if (is.null(input))
+        stop("no input location specified")
+    if (is.null(output))
+        stop("no output location specified")
     if (is.null(cmd))
         stop("no arguments supplied to iqtree2")
+
+    if (!db.exists(db, output)) {
+        db.sqlar_skeleton(db, output)
+        db.eval(db, sprintf("
+            INSERT INTO \"%s\"(name,mode,mtime,sz)
+            VALUES('iqtree_output',?,?,0)", output)
+            , list(
+                493L
+                , as.integer(unclass(as.POSIXct(Sys.time(), origin="1970-01-01")))
+            )
+        )
+    }
 
     iqtree = function() {
 
         tmpdir = tempdir()
 
-        db.unsqlar(db, sqlar_table, tmpdir)
-        db.unsqlar(db, "iqtree_output", tmpdir)
+        db.unsqlar(db, input, tmpdir)
+        db.unsqlar(db, output, tmpdir)
 
-        # if any part of the command string specifies a path in the sqlar_table
+        # if any part of the command string specifies a path in the input
         # we prepend the temporary working directory to it so that it refers to
         # a valid filesystem path
         args = paste(
             sapply(strsplit(cmd, " ", fixed=TRUE)[[1]], function(s) {
                 if (!is.null(
-                    db.eval(
+                    z <- db.eval(
                         db
-                        , sprintf("SELECT 1 FROM \"%s\" WHERE name=?", sqlar_table)
-                        , s)
+                        , sprintf("
+                            SELECT
+                                name
+                            FROM
+                                \"%s\"
+                            WHERE
+                                name
+                            LIKE
+                                ?
+                            ORDER BY
+                                mtime ASC
+                            LIMIT 1"
+                            , input
+                        )
+                        , paste0("%", s))
                     )
                 )
                 {
-                    s = file.path(tmpdir, s)
+                    s = file.path(tmpdir, z[[1]])
                 }
                 s
             }), collapse=" ")
@@ -160,23 +213,30 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
 
         output_files = setdiff(
             list.files(
-                file.path(tmpdir, db.sqlar_root(db, sqlar_table))
+                file.path(tmpdir, db.sqlar_root(db, input))
                 , recursive=TRUE, include.dirs=TRUE, full.names=TRUE)
-            , 
-            file.path(tmpdir, db.eval(db, 
-                sprintf("SELECT name FROM \"%s\"", sqlar_table), df=TRUE)[,1])
+            ,
+            file.path(tmpdir, db.eval(db,
+                sprintf("SELECT name FROM \"%s\"", input), df=TRUE)[,1])
         )
 
-        output_dir = file.path(
-            tmpdir, "iqtree_output", floor(unclass(Sys.time())))
+        result_dir = format(
+            as.POSIXct(unclass(Sys.time()), origin="1970-01-01", tz="UTC")
+            , "%Y%m%dT%H%M%S%Z")
+
+        output_dir = file.path(tmpdir, 'iqtree_output', result_dir)
         dir.create(output_dir)
 
         file.copy(
-            output_files, 
+            output_files,
             file.path(output_dir, basename(output_files)))
 
-        db.sqlar_update(db, "iqtree_output", file.path(tmpdir, "iqtree_output"))
-        cat("\n\nResults written to table iqtree_output\n")
+        db.sqlar_update(db, output, file.path(tmpdir, 'iqtree_output'))
+        cat(sprintf("\n\nResults written to table %s\n", output))
+
+        unlink(file.path(tmpdir, db.sqlar_root(db, input), recursive=TRUE)
+        unlink(file.path(tmpdir, 'iqtree_output'), recursive=TRUE)
+
         return (sub(file.path(tmpdir, ""), "", output_dir))
     }
 
@@ -191,7 +251,8 @@ xColumn = function(db, table, env, j) {
     enclos = environment(iqtree)
     switch(j
         , iqtree()
-        , enclos$sqlar_table
+        , enclos$input
+        , enclos$output
         , enclos$cmd
         , enclos$exe)
 }
@@ -205,3 +266,6 @@ register_iqtree_module = db.virtualtable("iqtree", list(
     .filter=xFilter,
     .column=xColumn
 ))
+
+
+modules = list(iqtree=register_iqtree_module)
