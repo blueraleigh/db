@@ -156,3 +156,5 @@ register_gmm_module = db.virtualtable("gmm", list(
     .filter=xFilter,
     .column=xColumn
 ))
+
+modules = list(gmm=register_gmm_module)

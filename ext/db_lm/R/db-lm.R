@@ -144,3 +144,6 @@ register_lm_module = db.virtualtable("lm", list(
     .filter=xFilter,
     .column=xColumn
 ))
+
+
+modules = list(lm=register_lm_module)

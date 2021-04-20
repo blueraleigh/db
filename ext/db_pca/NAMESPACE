@@ -1,11 +1,1 @@
-useDynLib(db.gmm, .registration = TRUE)
-
-S3method(predict, gmm)
-S3method(logLik, gmm)
-S3method(simulate, gmm)
-S3method(print, gmm)
-S3method(summary, gmm)
-
-
-export(gmm)
-export(register_gmm_module)
+export(register_pca_module)

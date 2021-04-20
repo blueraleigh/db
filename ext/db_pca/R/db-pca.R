@@ -155,3 +155,5 @@ register_pca_module = db.virtualtable("pca", list(
     .filter=xFilter,
     .column=xColumn
 ))
+
+modules = list(pca=register_pca_module)
