@@ -54,7 +54,7 @@ static SEXP module_method_eval(
         R_fcall = PROTECT(lcons(install(method), args));
     else
         R_fcall = PROTECT(lang1(install(method)));
-    result = PROTECT(R_tryEval(R_fcall, module_env(module), err));
+    result = PROTECT(R_tryEvalSilent(R_fcall, module_env(module), err));
     UNPROTECT(3);
     return result;
 }
@@ -227,6 +227,8 @@ static int RvtabDisconnect(sqlite3_vtab *pVtab)
     UNPROTECT(1);
     R_ReleaseObject(vtab->env);
     R_ReleaseObject(vtab->name);
+    if (pVtab->zErrMsg)
+        sqlite3_free(pVtab->zErrMsg);
     sqlite3_free(vtab);
     return SQLITE_OK;
 }
@@ -243,6 +245,8 @@ static int RvtabDestroy(sqlite3_vtab *pVtab)
     UNPROTECT(1);
     R_ReleaseObject(vtab->env);
     R_ReleaseObject(vtab->name);
+    if (pVtab->zErrMsg)
+        sqlite3_free(pVtab->zErrMsg);
     sqlite3_free(vtab);
     return SQLITE_OK;
 }
@@ -270,8 +274,12 @@ static int RvtabOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor)
         allocArgs(module_db(vtab->mod), vtab->name, vtab->env, 3));
     module_method_eval(vtab->mod, ".open", args, &err);
     UNPROTECT(1);
-    if (err)
+    if (err) {
+        if (p->zErrMsg)
+            sqlite3_free(p->zErrMsg);
+        p->zErrMsg = sqlite3_mprintf("%s", R_curErrorBuf());
         return SQLITE_ERROR;
+    }
     cursor = sqlite3_malloc(sizeof(*cursor));
     if (cursor == 0) return SQLITE_NOMEM;
     memset(cursor, 0, sizeof(*cursor));
@@ -328,8 +336,12 @@ static int RvtabFilter(
 
     module_method_eval(cursor->mod, ".filter", args, &err);
 
-    if (err)
+    if (err) {
+        if (pVtabCursor->pVtab->zErrMsg)
+            sqlite3_free(pVtabCursor->pVtab->zErrMsg);
+        pVtabCursor->pVtab->zErrMsg = sqlite3_mprintf("%s", R_curErrorBuf());
         rc = SQLITE_ERROR;
+    }
 
     UNPROTECT(1);
     return rc;
@@ -344,8 +356,12 @@ static int RvtabNext(sqlite3_vtab_cursor *cur)
         allocArgs(module_db(cursor->mod), cursor->name, cursor->env, 3));
     module_method_eval(cursor->mod, ".next", args, &err);
     UNPROTECT(1);
-    if (err)
+    if (err) {
+        if (cur->pVtab->zErrMsg)
+            sqlite3_free(cur->pVtab->zErrMsg);
+        cur->pVtab->zErrMsg = sqlite3_mprintf("%s", R_curErrorBuf());
         return SQLITE_ERROR;
+    }
     return SQLITE_OK;
 }
 
@@ -368,6 +384,9 @@ static int RvtabColumn(
         cursor->mod, ".column", args, &err));
     if (err)
     {
+        if (cur->pVtab->zErrMsg)
+            sqlite3_free(cur->pVtab->zErrMsg);
+        cur->pVtab->zErrMsg = sqlite3_mprintf("%s", R_curErrorBuf());
         UNPROTECT(2);
         return SQLITE_ERROR;
     }
@@ -435,6 +454,9 @@ static int RvtabBestIndex(
 
     if (err)
     {
+        if (tab->zErrMsg)
+            sqlite3_free(tab->zErrMsg);
+        tab->zErrMsg = sqlite3_mprintf("%s", R_curErrorBuf());
         UNPROTECT(4);
         return SQLITE_ERROR;
     }
@@ -507,6 +529,9 @@ static int RvtabRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid)
     SEXP rid = PROTECT(module_method_eval(cursor->mod, ".rowid", args, &err));
     if (err)
     {
+        if (cur->pVtab->zErrMsg)
+            sqlite3_free(cur->pVtab->zErrMsg);
+        cur->pVtab->zErrMsg = sqlite3_mprintf("%s", R_curErrorBuf());
         UNPROTECT(2);
         return SQLITE_ERROR;
     }
@@ -591,6 +616,9 @@ static int RvtabUpdate(sqlite3_vtab *pVtab, int argc,
 
     if (err)
     {
+        if (pVtab->zErrMsg)
+            sqlite3_free(pVtab->zErrMsg);
+        pVtab->zErrMsg = sqlite3_mprintf("%s", R_curErrorBuf());
         UNPROTECT(2);
         return SQLITE_ERROR;
     }
