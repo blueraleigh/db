@@ -43,7 +43,7 @@
                 db
                 , sprintf("UPDATE \"%s\" SET mode=?, mtime=? WHERE name=?", name)
                 , list(
-                    , unclass(fstat$mode[i])
+                    unclass(fstat$mode[i])
                     , unclass(fstat$mtime[i])
                     , files[i]))
         } else {
@@ -58,7 +58,7 @@
                     , data=sqlar_compress(?)
                 WHERE name=?", name)
                 , list(
-                    , unclass(fstat$mode[i])
+                    unclass(fstat$mode[i])
                     , unclass(fstat$mtime[i])
                     , fstat$size[i]
                     , raw
@@ -132,17 +132,25 @@ db.sqlar_update = function(db, name, path) {
     sqlar = db.eval(db,
             sprintf("SELECT name,mtime,mode FROM \"%s\" WHERE name != ?", name),
             list(topdir), TRUE)
-    rownames(sqlar) = sqlar$name
-    deleted.files = setdiff(sqlar$name, path.names)
-    added.files = setdiff(path.names, sqlar$name)
-    changed.content = .sqlar.changed.content(
-        structure(as.POSIXct(sqlar$mtime, origin="1970-01-01"),
-            names=sqlar$name),
-        structure(fstat$mtime, names=path.names))
-    changed.mode = .sqlar.changed.mode(
-        structure(as.octmode(sqlar$mode), names=sqlar$name),
-        structure(fstat$mode, names=path.names))
-    changed.mode.only = setdiff(changed.mode, changed.content)
+    if (is.null(sqlar)) {
+        deleted.files = character()
+        added.files = path.names
+        changed.content = character()
+        changed.mode = character()
+        changed.mode.only = character()
+    } else {
+        rownames(sqlar) = sqlar$name
+        deleted.files = setdiff(sqlar$name, path.names)
+        added.files = setdiff(path.names, sqlar$name)
+        changed.content = .sqlar.changed.content(
+            structure(as.POSIXct(sqlar$mtime, origin="1970-01-01"),
+                names=sqlar$name),
+            structure(fstat$mtime, names=path.names))
+        changed.mode = .sqlar.changed.mode(
+            structure(as.octmode(sqlar$mode), names=sqlar$name),
+            structure(fstat$mode, names=path.names))
+        changed.mode.only = setdiff(changed.mode, changed.content)
+    }
     if (length(deleted.files))
         .sqlar.delete(db, name, deleted.files)
     if (length(added.files))
