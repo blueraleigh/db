@@ -15,7 +15,7 @@
                 , list(
                     files[i]
                     , unclass(fstat$mode[i])
-                    , unclass(fstat$mtime[i])
+                    , as.integer(unclass(fstat$mtime[i]))
                     , 0))
         } else {
             f = rownames(fstat)[i]
@@ -27,7 +27,7 @@
                 , list(
                     files[i]
                     , unclass(fstat$mode[i])
-                    , unclass(fstat$mtime[i])
+                    , as.integer(unclass(fstat$mtime[i]))
                     , fstat$size[i]
                     , raw))
         }
@@ -44,7 +44,7 @@
                 , sprintf("UPDATE \"%s\" SET mode=?, mtime=? WHERE name=?", name)
                 , list(
                     unclass(fstat$mode[i])
-                    , unclass(fstat$mtime[i])
+                    , as.integer(unclass(fstat$mtime[i]))
                     , files[i]))
         } else {
             f = rownames(fstat)[i]
@@ -59,7 +59,7 @@
                 WHERE name=?", name)
                 , list(
                     unclass(fstat$mode[i])
-                    , unclass(fstat$mtime[i])
+                    , as.integer(unclass(fstat$mtime[i]))
                     , fstat$size[i]
                     , raw
                     , files[i]))
