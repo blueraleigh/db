@@ -234,7 +234,7 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         db.sqlar_update(db, output, file.path(tmpdir, 'iqtree_output'))
         cat(sprintf("\n\nResults written to table %s\n", output))
 
-        unlink(file.path(tmpdir, db.sqlar_root(db, input), recursive=TRUE)
+        unlink(file.path(tmpdir, db.sqlar_root(db, input)), recursive=TRUE)
         unlink(file.path(tmpdir, 'iqtree_output'), recursive=TRUE)
 
         return (sub(file.path(tmpdir, ""), "", output_dir))
