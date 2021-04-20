@@ -32,6 +32,7 @@ xCreate = function(db, table, ...) {
 
 
 xConnect = function(db, table, ...) {
+    args = substitute(expression(...))
     schema = "
     CREATE TABLE x(
         output TEXT
@@ -42,6 +43,14 @@ xConnect = function(db, table, ...) {
     "
     env = new.env()
     assign("schema", schema, envir=env)
+    if (length(args) > 1) {
+        if (!is.null(args$data))
+            assign("data", args$data, envir=env)
+        if (!is.null(args$cmd))
+            assign("cmd", args$cmd, envir=env)
+        if (!is.null(args$exe))
+            assign("exe", args$exe, envir=env)
+    }
     return (env)
 }
 
@@ -54,6 +63,7 @@ xEof = function(db, table, env) {
 
 
 xBestIndex = function(db, table, env, constraints, orderbys) {
+
     if (!length(constraints))
         return (NULL)
 
@@ -65,45 +75,47 @@ xBestIndex = function(db, table, env, constraints, orderbys) {
     }, ccols, 0L)
 
     # idxnum     # constraint columns
-    # 1          1
     # 2          2
     # 4          3
-    # 3          1,2
-    # 5          1,3
+    # 8          4
     # 6          2,3
-    # 7          1,2,3
+    # 10         2,4
+    # 12         3,4
+    # 14         2,3,4
     # 0          none
 
     return (list(
         argv=order(ccols)
         , idxnum=idxnum
-        , idxname=""
+        , idxname=as.character(idxnum)
         , issorted=FALSE
-        , cost=1)
+        , cost=25)
     )
 }
 
 xFilter = function(db, table, env, idxnum, idxname, ...) {
 
-    sqlar_table = switch(idxnum,
-        , `1`=
-        , `3`=
-        , `5`=
-        , `7`=...elt(1L)
+    if (idxnum == 0L)
+        idxname = "0"
+    sqlar_table = switch(idxname
+        , "2"=
+        , "6"=
+        , "10"=
+        , "14"=...elt(1L)
         , env$data
     )
-    cmd = switch(idxnum,
-        , `2`=
-        , `6`=...elt(1L)
-        , `3`=
-        , `7`=...elt(2L)
+    cmd = switch(idxname
+        , "4"=
+        , "12"=...elt(1L)
+        , "6"=
+        , "14"=...elt(2L)
         , env$cmd
     )
-    exe = switch(idxnum,
-        , `4`=...elt(1L)
-        , `5`=
-        , `6`=...elt(2L)
-        , `7`=...elt(3L)
+    exe = switch(idxname
+        , "8"=...elt(1L)
+        , "10"=
+        , "12"=...elt(2L)
+        , "14"=...elt(3L)
         , env$exe
     )
 
@@ -118,17 +130,13 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         stop("no arguments supplied to iqtree2")
 
     iqtree = function() {
-        owd = getwd()
-        on.exit(setwd(owd))
 
         tmpdir = tempdir()
 
         db.unsqlar(db, sqlar_table, tmpdir)
         db.unsqlar(db, "iqtree_output", tmpdir)
 
-        setwd(file.path(tmpdir, "iqtree_output"))
-
-        # if any part of the command string specifies a path in the sqlar table
+        # if any part of the command string specifies a path in the sqlar_table
         # we prepend the temporary working directory to it so that it refers to
         # a valid filesystem path
         args = paste(
@@ -136,25 +144,44 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
                 if (!is.null(
                     db.eval(
                         db
-                        , sprintf("SELECT 1 FROM %s WHERE name=?", sqlar_table)
+                        , sprintf("SELECT 1 FROM \"%s\" WHERE name=?", sqlar_table)
                         , s)
                     )
                 )
                 {
-                    s = file.path(tmpdir, db.sqlar_root(db, sqlar_table), s)
+                    s = file.path(tmpdir, s)
                 }
                 s
             }), collapse=" ")
 
-        cat("IQ-TREE started at: %s\n\n", Sys.time())
+        cat(sprintf("IQ-TREE started at: %s\n\n", Sys.time()))
         system2(exe, args)
-        cat("\n\nIQ-TREE finished at: %s", Sys.time())
+        cat(sprintf("\n\nIQ-TREE finished at: %s", Sys.time()))
 
-        db.sqlar_update(db, "iqtree_output", getwd())
-        cat("\n\nResults written to table iqtree_output")
+        output_files = setdiff(
+            list.files(
+                file.path(tmpdir, db.sqlar_root(db, sqlar_table))
+                , recursive=TRUE, include.dirs=TRUE, full.names=TRUE)
+            , 
+            file.path(tmpdir, db.eval(db, 
+                sprintf("SELECT name FROM \"%s\"", sqlar_table), df=TRUE)[,1])
+        )
+
+        output_dir = file.path(
+            tmpdir, "iqtree_output", floor(unclass(Sys.time())))
+        dir.create(output_dir)
+
+        file.copy(
+            output_files, 
+            file.path(output_dir, basename(output_files)))
+
+        db.sqlar_update(db, "iqtree_output", file.path(tmpdir, "iqtree_output"))
+        cat("\n\nResults written to table iqtree_output\n")
+        return (sub(file.path(tmpdir, ""), "", output_dir))
     }
 
     assign("iqtree", iqtree, envir=env)
+    assign("rowid", 1L, envir=env)
 
 }
 
