@@ -36,10 +36,10 @@
 #' )
 #' }
 #' where 'pkg' is the name of an R package that implements the various
-#' extensions. An R package that implements dbpkg extensions must export
-#' three functions named 'functions', 'modules', and 'views' each of which
-#' is expected to return a named list of functions to register with the
-#' newly formed database connection. Note that any functions passed in
+#' extensions. An R package that implements dbpkg extensions must contain
+#' three objects in its namespace named 'functions', 'modules', and 'views',
+#' each of which is expected to be a named list of functions to register with
+#' the newly formed database connection. Note that any functions passed in
 #' as arguments to \code{db.open} (via 'functions', 'modules', and 'views')
 #' take precedence over functions provided by dbpkg extensions.
 #' @return An S4 object of class "database". This object has three slots.
@@ -120,11 +120,11 @@ db.open = function(file=":memory:", functions=list(), modules=list()
                 pkg = l$pkg
                 if (requireNamespace(pkg, quietly=TRUE)) {
                     ns = getNamespace(pkg)
-                    udfs = get0("functions", ns, mode="function")
-                    mods = get0("modules", ns, mode="function")
+                    udfs = get0("functions", ns, mode="list")
+                    mods = get0("modules", ns, mode="list")
                     docs = NULL
                     if (register)
-                        docs = get0("views", ns, mode="function")
+                        docs = get0("views", ns, mode="list")
                     for (i in seq_along(udfs)) {
                         if (!names(udfs)[i] %in% functions)
                             db.function(db, names(udfs)[i], udfs[[i]])
