@@ -200,7 +200,7 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
                                 LIKE
                                     ?
                                 ORDER BY
-                                    mtime ASC
+                                    mtime DESC
                                 LIMIT 1"
                                 , i
                             )
