@@ -173,7 +173,7 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         owd = getwd()
         on.exit(setwd(owd))
         tmpdir = tempdir()
-        setwd(tempdir)
+        setwd(tmpdir)
 
         inputs = unique(strsplit(input, " ?, ?")[[1]])
 
