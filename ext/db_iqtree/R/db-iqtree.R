@@ -170,8 +170,10 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
     }
 
     iqtree = function() {
-
+        owd = getwd()
+        on.exit(setwd(owd))
         tmpdir = tempdir()
+        setwd(tempdir)
 
         inputs = unique(strsplit(input, " ?, ?")[[1]])
 
@@ -180,6 +182,8 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
 
         if (is.na(match(output, inputs)))
             db.unsqlar(db, output, tmpdir)
+
+        output_files = list.files(tmpdir)
 
         # if any part of the command string specifies a path in the input
         # we prepend the temporary working directory to it so that it refers to
@@ -219,7 +223,7 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         system2(exe, args)
         cat(sprintf("\n\nIQ-TREE finished at: %s", Sys.time()))
 
-        output_files = c()
+        output_files = setdiff(list.files(), output_files)
         for (i in inputs) {
             output_files = union(setdiff(
                 list.files(
