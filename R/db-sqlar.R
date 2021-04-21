@@ -114,7 +114,7 @@ db.sqlar_skeleton = function(db, name) {
 #' @param path The path to the top-level directory of the archive.
 #' @details This will update the sqlar table in the database to reflect
 #' any changes made to the files under \code{path} (including file
-#' additions and deletions and changed file permissions).
+#' additions and changed file permissions).
 #' @note The \code{\link{sqlar_compress}} function must be registered
 #' with the database connection for this function to work. This is done
 #' automatically with \code{\link{db.open}}
@@ -131,16 +131,16 @@ db.sqlar_update = function(db, name, path) {
     fstat = file.info(flist)
     sqlar = db.eval(db,
             sprintf("SELECT name,mtime,mode FROM \"%s\" WHERE name != ?", name),
-            list(topdir), TRUE)
+            list(topdir), df=TRUE)
     if (is.null(sqlar)) {
-        deleted.files = character()
+    #    deleted.files = character()
         added.files = path.names
         changed.content = character()
         changed.mode = character()
         changed.mode.only = character()
     } else {
         rownames(sqlar) = sqlar$name
-        deleted.files = setdiff(sqlar$name, path.names)
+    #    deleted.files = setdiff(sqlar$name, path.names)
         added.files = setdiff(path.names, sqlar$name)
         changed.content = .sqlar.changed.content(
             structure(as.POSIXct(sqlar$mtime, origin="1970-01-01"),
@@ -151,8 +151,8 @@ db.sqlar_update = function(db, name, path) {
             structure(fstat$mode, names=path.names))
         changed.mode.only = setdiff(changed.mode, changed.content)
     }
-    if (length(deleted.files))
-        .sqlar.delete(db, name, deleted.files)
+    #if (length(deleted.files))
+    #    .sqlar.delete(db, name, deleted.files)
     if (length(added.files))
         .sqlar.insert(db, name, fstat, added.files, ignore)
     if (length(changed.content) || length(changed.mode.only))
@@ -188,7 +188,7 @@ db.sqlar = function(db, name, path) {
     fstat = file.info(flist)
     db.eval(db,
         sprintf("INSERT INTO \"%s\"(name,mode,mtime,sz) VALUES(?,?,?,?)", name),
-        list(topdir, unclass(file.mode(path)), unclass(file.mtime(path)), 0))
+        list(topdir, unclass(file.mode(path)), as.integer(unclass(file.mtime(path))), 0))
     .sqlar.insert(db, name, fstat, gsub(ignore, "", flist, fixed=TRUE), ignore)
 }
 
@@ -208,6 +208,10 @@ db.sqlar_root = function(db, name) {
 #' @param db The database connection. S4 object of class "database".
 #' @param name The name of the SQLite archive table.
 #' @param path The path to unpack the archive under.
+#' @param files The files in the archive to extract. These need not be
+#' complete names. For example, "file1" will be matched using wildcards
+#' on either end. So if "file1" is a directory all files under it will be
+#' extracted.
 #' @details This will read the sqlar table in the database and write out
 #' its content into a filesystem hierarchy under \code{path}.
 #' @note The \code{\link{sqlar_uncompress}} function must be registered
@@ -215,17 +219,32 @@ db.sqlar_root = function(db, name) {
 #' automatically with \code{\link{db.open}}
 #' @return None.
 #' @export
-db.unsqlar = function(db, name, path) {
+db.unsqlar = function(db, name, path, files) {
     stopifnot(is(db, "database"))
     wd = getwd()
     on.exit(setwd(wd))
     setwd(path)
-    db.lapply(
-        db
-        , sprintf("
+    if (missing(files) || is.null(files) || !length(files)) {
+        stmt = sprintf("
         SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
         FROM \"%s\" ORDER BY rowid", name)
+        params = list(list())
+    } else {
+        nfiles = length(files)
+        like = paste(
+            c("name LIKE ?", rep("OR name LIKE ?", nfiles-1)), collapse=" ")
+        stmt = sprintf("
+        SELECT
+            name,mode,mtime,sqlar_uncompress(data,sz) AS data
+        FROM \"%s\" WHERE %s ORDER BY rowid", name, like)
+        params = list(as.list(paste0("%", files, "%")))
+
+    }
+    db.lapply(
+        db
+        , stmt
+        , params
         , FUN=function(f) {
             if (length(f$data) == 1 && is.na(f$data)) {
                 dir.create(f$name, mode=as.octmode(f$mode))
