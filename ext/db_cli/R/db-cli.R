@@ -173,7 +173,7 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         tmpdir = tempdir()
         setwd(tmpdir)
 
-        inputs = unique(strsplit(input, " ?, ?")[[1]])
+        inputs = unique(strsplit(input, " *, *")[[1]])
 
         for (i in inputs)
             db.unsqlar(db, i, tmpdir)
