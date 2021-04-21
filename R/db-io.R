@@ -62,7 +62,7 @@ db.open = function(file=":memory:", functions=list(), modules=list()
         return (db)
     db = Db()
     db@name = basename(file)
-    db@handle = .Call(db_open, file, match.arg(mode))
+    db@handle = .Call(db_open, path.expand(file), match.arg(mode))
     if (file != "" && file != ":memory:")
         db@file = normalizePath(file)
     else
