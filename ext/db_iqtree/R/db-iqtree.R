@@ -146,9 +146,9 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
     )
 
     if (is.null(exe))
-        exe = Sys.which("iqtree2")
+        exe = unname(Sys.which("iqtree2"))
 
-    exe = Sys.which(exe)
+    exe = unname(Sys.which(exe))
     if (exe == "")
         stop("unable to find iqtree2")
     if (is.null(input))
