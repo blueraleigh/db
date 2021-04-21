@@ -20,8 +20,8 @@ xCreate = function(db, table, ...) {
             if (!db.exists(db, args$output)) {
                 db.sqlar_skeleton(db, args$output)
                 db.eval(db, sprintf("
-                    INSERT INTO \"%s\"(name,mode,mtime,sz)
-                    VALUES('iqtree_output',?,?,0)", output)
+                    INSERT INTO \"%1$s\"(name,mode,mtime,sz)
+                    VALUES('%1$s',?,?,0)", output)
                     , list(
                         493L
                         , as.integer(unclass(as.POSIXct(Sys.time(), origin="1970-01-01")))
@@ -160,8 +160,8 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
     if (!db.exists(db, output)) {
         db.sqlar_skeleton(db, output)
         db.eval(db, sprintf("
-            INSERT INTO \"%s\"(name,mode,mtime,sz)
-            VALUES('iqtree_output',?,?,0)", output)
+            INSERT INTO \"%1$s\"(name,mode,mtime,sz)
+            VALUES('%1$s',?,?,0)", output)
             , list(
                 493L
                 , as.integer(unclass(as.POSIXct(Sys.time(), origin="1970-01-01")))
@@ -173,36 +173,44 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
 
         tmpdir = tempdir()
 
-        db.unsqlar(db, input, tmpdir)
-        db.unsqlar(db, output, tmpdir)
+        inputs = unique(strsplit(input, " ?, ?")[[1]])
+
+        for (i in inputs)
+            db.unsqlar(db, i, tmpdir)
+
+        if (is.na(match(output, inputs)))
+            db.unsqlar(db, output, tmpdir)
 
         # if any part of the command string specifies a path in the input
         # we prepend the temporary working directory to it so that it refers to
         # a valid filesystem path
         args = paste(
             sapply(strsplit(cmd, " ", fixed=TRUE)[[1]], function(s) {
-                if (!is.null(
-                    z <- db.eval(
-                        db
-                        , sprintf("
-                            SELECT
-                                name
-                            FROM
-                                \"%s\"
-                            WHERE
-                                name
-                            LIKE
-                                ?
-                            ORDER BY
-                                mtime ASC
-                            LIMIT 1"
-                            , input
+                for (i in inputs) {
+                    if (!is.null(
+                        z <- db.eval(
+                            db
+                            , sprintf("
+                                SELECT
+                                    name
+                                FROM
+                                    \"%s\"
+                                WHERE
+                                    name
+                                LIKE
+                                    ?
+                                ORDER BY
+                                    mtime ASC
+                                LIMIT 1"
+                                , i
+                            )
+                            , paste0("%", s))
                         )
-                        , paste0("%", s))
                     )
-                )
-                {
-                    s = file.path(tmpdir, z[[1]])
+                    {
+                        s = file.path(tmpdir, z[[1]])
+                        break
+                    }
                 }
                 s
             }), collapse=" ")
@@ -211,31 +219,36 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         system2(exe, args)
         cat(sprintf("\n\nIQ-TREE finished at: %s", Sys.time()))
 
-        output_files = setdiff(
-            list.files(
-                file.path(tmpdir, db.sqlar_root(db, input))
-                , recursive=TRUE, include.dirs=TRUE, full.names=TRUE)
-            ,
-            file.path(tmpdir, db.eval(db,
-                sprintf("SELECT name FROM \"%s\"", input), df=TRUE)[,1])
-        )
+        output_files = c()
+        for (i in inputs) {
+            output_files = union(setdiff(
+                list.files(
+                    file.path(tmpdir, db.sqlar_root(db, i))
+                    , recursive=TRUE, include.dirs=TRUE, full.names=TRUE)
+                ,
+                file.path(tmpdir, db.eval(db,
+                    sprintf("SELECT name FROM \"%s\"", i), df=TRUE)[,1])
+            ), output_files)
+        }
 
         result_dir = format(
             as.POSIXct(unclass(Sys.time()), origin="1970-01-01", tz="UTC")
             , "%Y%m%dT%H%M%S%Z")
 
-        output_dir = file.path(tmpdir, 'iqtree_output', result_dir)
+        output_dir = file.path(tmpdir, output, result_dir)
         dir.create(output_dir)
 
         file.copy(
             output_files,
             file.path(output_dir, basename(output_files)))
 
-        db.sqlar_update(db, output, file.path(tmpdir, 'iqtree_output'))
+        db.sqlar_update(db, output, file.path(tmpdir, output))
         cat(sprintf("\n\nResults written to table %s\n", output))
 
-        unlink(file.path(tmpdir, db.sqlar_root(db, input)), recursive=TRUE)
-        unlink(file.path(tmpdir, 'iqtree_output'), recursive=TRUE)
+        for (i in inputs)
+            unlink(file.path(tmpdir, db.sqlar_root(db, i)), recursive=TRUE)
+        if (is.na(match(output, inputs)))
+            unlink(file.path(tmpdir, output), recursive=TRUE)
 
         return (sub(file.path(tmpdir, ""), "", output_dir))
     }
