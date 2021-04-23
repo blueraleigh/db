@@ -2,7 +2,7 @@ xCreate = function(db, table, ...) {
     args = substitute(expression(...))
     schema = "
     CREATE TABLE x(
-        result TEXT
+        status   INTEGER      -- the exit code
         , input  HIDDEN TEXT  -- sqlar table(s) with input data
         , output HIDDEN TEXT  -- sqlar table to hold output data
         , cmd    HIDDEN TEXT  -- arguments to the executable
@@ -58,9 +58,10 @@ xBestIndex = function(db, table, env, constraints, orderbys) {
 
     ccols = sapply(constraints, "[[", 1L)
 
+    # don't index on the first column
     use = ccols != 1L
 
-    # set a bit for each column that has a constraint
+    # set a bit for each indexable column that has a constraint
     idxnum = Reduce(function(a, b) {
         bitwOr(a, bitwShiftL(1, b-1))
     }, ccols[use], 0L)
@@ -173,6 +174,7 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         tmpdir = tempdir()
         setwd(tmpdir)
 
+        # input maybe a comma separated string of sqlar tables
         inputs = unique(strsplit(input, " *, *")[[1]])
 
         for (i in inputs)
@@ -223,7 +225,7 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
                 s
             }), collapse=" ")
 
-        system2(exe, args)
+        status = system2(exe, args)
 
         output_files = setdiff(list.files(), output_files)
         for (i in inputs) {
@@ -256,7 +258,8 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         if (is.na(match(output, inputs)))
             unlink(file.path(tmpdir, output), recursive=TRUE)
 
-        return (sub(file.path(tmpdir, ""), "", output_dir))
+        return (status)
+        #return (sub(file.path(tmpdir, ""), "", output_dir))
     }
 
     assign("cli", cli, envir=env)
