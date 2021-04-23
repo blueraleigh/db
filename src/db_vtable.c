@@ -4,6 +4,23 @@
 #include "sqlite3.h"
 #include "convert.h"
 
+static int isna(SEXP x)
+{
+    switch (TYPEOF(x)) {
+        case LGLSXP:
+            return LOGICAL(x)[0] == NA_LOGICAL;
+        case INTSXP:
+            return INTEGER(x)[0] == NA_INTEGER;
+        case REALSXP:
+            return REAL(x)[0] == NA_REAL;
+        case STRSXP:
+            return STRING_ELT(x, 0) == NA_STRING;
+        default:
+            return 0;
+    }
+    return 0;
+}
+
 
 static SEXP module_slot(SEXP module, const char *slot)
 {
@@ -623,7 +640,7 @@ static int RvtabUpdate(sqlite3_vtab *pVtab, int argc,
         return SQLITE_ERROR;
     }
 
-    if (ISNA(res))
+    if (isna(res))
     {
         UNPROTECT(2);
         return SQLITE_READONLY;
