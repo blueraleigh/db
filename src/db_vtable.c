@@ -623,7 +623,7 @@ static int RvtabUpdate(sqlite3_vtab *pVtab, int argc,
         return SQLITE_ERROR;
     }
 
-    if (res == R_NilValue)
+    if (ISNA(res))
     {
         UNPROTECT(2);
         return SQLITE_READONLY;
