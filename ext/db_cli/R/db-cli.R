@@ -145,7 +145,15 @@ xFilter = function(db, table, env, idxnum, idxname, ...) {
         , "30"=...elt(4L)
         , env$exe
     )
+    
+    .cmd = cmd
+    .exe = exe
 
+    if (!is.null(exe) && substr(exe, 1, 9) == "java -jar") {
+        cmd = paste(substring(exe, 6), cmd, collapse=" ")
+        exe = "java"
+    }
+    
     exe = unname(Sys.which(exe))
     if (exe == "")
         stop("unable to find executable")
@@ -275,8 +283,8 @@ xColumn = function(db, table, env, j) {
         , cli()
         , enclos$input
         , enclos$output
-        , enclos$cmd
-        , enclos$exe)
+        , enclos$.cmd
+        , enclos$.exe)
 }
 
 
