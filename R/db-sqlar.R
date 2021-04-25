@@ -228,7 +228,7 @@ db.unsqlar = function(db, name, path, files) {
         stmt = sprintf("
         SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
-        FROM \"%s\" ORDER BY rowid", name)
+        FROM \"%s\" ORDER BY sz,rowid", name)
         params = list(list())
     } else {
         nfiles = length(files)
@@ -237,7 +237,7 @@ db.unsqlar = function(db, name, path, files) {
         stmt = sprintf("
         SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
-        FROM \"%s\" WHERE %s ORDER BY rowid", name, like)
+        FROM \"%s\" WHERE %s ORDER BY sz,rowid", name, like)
         params = list(as.list(paste0("%", files, "%")))
 
     }
@@ -247,7 +247,8 @@ db.unsqlar = function(db, name, path, files) {
         , params
         , FUN=function(f) {
             if (length(f$data) == 1 && is.na(f$data)) {
-                dir.create(f$name, mode=as.octmode(f$mode))
+                dir.create(f$name, mode=as.octmode(f$mode), recursive=TRUE, 
+                    showWarnings=FALSE)
                 Sys.setFileTime(f$name, as.POSIXct(f$mtime, origin="1970-01-01"))
             } else {
                 writeBin(f$data, f$name)
