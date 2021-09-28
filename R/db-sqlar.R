@@ -131,7 +131,7 @@ db.sqlar_update = function(db, name, path) {
     fstat = file.info(flist)
     sqlar = db.eval(db,
             sprintf("SELECT name,mtime,mode FROM \"%s\" WHERE name != ?", name),
-            list(topdir), df=TRUE)
+            list(topdir), row_factory="data.frame")
     if (is.null(sqlar)) {
     #    deleted.files = character()
         added.files = path.names

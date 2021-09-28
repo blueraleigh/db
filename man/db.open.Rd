@@ -67,10 +67,10 @@ CREATE TABLE dbpkg (
 )
 }
 where 'pkg' is the name of an R package that implements the various
-extensions. An R package that implements dbpkg extensions must export
-three functions named 'functions', 'modules', and 'views' each of which
-is expected to return a named list of functions to register with the
-newly formed database connection. Note that any functions passed in
+extensions. An R package that implements dbpkg extensions must contain
+three objects in its namespace named 'functions', 'modules', and 'views',
+each of which is expected to be a named list of functions to register with
+the newly formed database connection. Note that any functions passed in
 as arguments to \code{db.open} (via 'functions', 'modules', and 'views')
 take precedence over functions provided by dbpkg extensions.
 }

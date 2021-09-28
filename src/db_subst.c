@@ -22,7 +22,6 @@ SEXP db_subst(SEXP db, SEXP txt, SEXP env) {
 
     int i = 0;
     int n = strlen(cs);
-    int nprotect = 0;
     int err;
     while (i < n) {
         c = cs[i++];

@@ -19,7 +19,7 @@
 #' object that it is expected to fill out using the \code{db.reply*}
 #' family of functions.
 #' @examples
-#' \dontrun {
+#' \dontrun{
 #'
 #' index = function(db, req, resp) {
 #'     db.reply(resp, db.subst(db,

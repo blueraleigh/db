@@ -4,10 +4,12 @@
 \alias{db.sqlar}
 \title{Create a SQLite archive}
 \usage{
-db.sqlar(db, path)
+db.sqlar(db, name, path)
 }
 \arguments{
 \item{db}{The database connection. S4 object of class "database".}
+
+\item{name}{The name of the SQLite archive table.}
 
 \item{path}{The path to the top-level directory of the archive.}
 }

@@ -4,18 +4,14 @@
 \alias{db.fetch}
 \title{Retrieve the rows from the result set of a query}
 \usage{
-db.fetch(cur, df)
+db.fetch(cur, row_factory)
 }
 \arguments{
 \item{cur}{The cursor returned by \code{db.eval}. An S4 object of class
 "cursor".}
 
-\item{df}{A boolean. Should the result be returned as a data.frame?}
-}
-\value{
-A matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
-from the result set. If \code{df=FALSE} subsets of the matrix will
-return lists rather than atomic vectors.
+\item{row_factory}{The name of a function to apply to each row of the result
+set before it is returned.}
 }
 \description{
 This is an internal function and not meant to be called outside

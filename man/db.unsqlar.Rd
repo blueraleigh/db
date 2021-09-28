@@ -4,12 +4,19 @@
 \alias{db.unsqlar}
 \title{Unpack a SQLite archive.}
 \usage{
-db.unsqlar(db, path)
+db.unsqlar(db, name, path, files)
 }
 \arguments{
 \item{db}{The database connection. S4 object of class "database".}
 
+\item{name}{The name of the SQLite archive table.}
+
 \item{path}{The path to unpack the archive under.}
+
+\item{files}{The files in the archive to extract. These need not be
+complete names. For example, "file1" will be matched using wildcards
+on either end. So if "file1" is a directory all files under it will be
+extracted.}
 }
 \value{
 None.

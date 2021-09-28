@@ -4,10 +4,12 @@
 \alias{db.sqlar_skeleton}
 \title{Initialize the SQLite archive schema}
 \usage{
-db.sqlar_skeleton(db)
+db.sqlar_skeleton(db, name)
 }
 \arguments{
 \item{db}{The database connection. S4 object of class "database".}
+
+\item{name}{The name of the SQLite archive table.}
 }
 \value{
 None.

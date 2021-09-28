@@ -27,7 +27,10 @@ in the calling frame, substituting any returned value in place of
 the text between braces.
 }
 \note{
-
+Currently expressions do not nest. That is, the function will stop
+at the first closing brace it finds and try to parse the extracted
+expression. So "hello, \{\{greeting\}\}!" will attempt to parse `\{greeting`,
+which will return a parse error.
 }
 \examples{
 db = db.open()

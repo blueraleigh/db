@@ -4,7 +4,13 @@
 \alias{db.eval}
 \title{Evaluate SQL statements}
 \usage{
-db.eval(db, stmt, params, df = getOption("DBPKG_DATAFRAME_RETURN", FALSE))
+db.eval(
+  db,
+  stmt,
+  params,
+  row_factory = "identity",
+  simplify = getOption("DBPKG_SIMPLIFY_RETURN", FALSE)
+)
 }
 \arguments{
 \item{db}{The database connection. An S4 object of class "database".}
@@ -22,13 +28,16 @@ SELECT statement. For the common case when there is only a single parameter
 set it is permitted to pass an atomic vector or a single list (i.e., no
 sublists) with the parameter values to bind.}
 
-\item{df}{A boolean. Should the result be returned as a data.frame?}
+\item{row_factory}{The name of a function to apply to each row of the result
+set before it is returned.}
 }
 \value{
 The result of a SELECT statement or NULL if the
 statement is not a SELECT. Results will be returned as
-a matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
-from the result set. If \code{df=FALSE} subsets of the matrix will
+a matrix (row_factory="identity") or data.frame (row_factory="data.frame") 
+containing the rows from the result set, or a list, each element of 
+which is the result of applying row_factory to the corresponding row in 
+the result set. If \code{row_factory="identity"} subsets of the matrix will
 return lists rather than atomic vectors. This is necessary because
 elements of the matrix can hold any type of object that are not
 necessarily the same from one element to the next.

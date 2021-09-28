@@ -85,11 +85,14 @@ db.prepare = function(db, stmt, params) {
 #' SELECT statement. For the common case when there is only a single parameter
 #' set it is permitted to pass an atomic vector or a single list (i.e., no
 #' sublists) with the parameter values to bind.
-#' @param df A boolean. Should the result be returned as a data.frame?
+#' @param row_factory The name of a function to apply to each row of the result
+#' set before it is returned.
 #' @return The result of a SELECT statement or NULL if the
 #' statement is not a SELECT. Results will be returned as
-#' a matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
-#' from the result set. If \code{df=FALSE} subsets of the matrix will
+#' a matrix (row_factory="identity") or data.frame (row_factory="data.frame") 
+#' containing the rows from the result set, or a list, each element of 
+#' which is the result of applying row_factory to the corresponding row in 
+#' the result set. If \code{row_factory="identity"} subsets of the matrix will
 #' return lists rather than atomic vectors. This is necessary because
 #' elements of the matrix can hold any type of object that are not
 #' necessarily the same from one element to the next.
@@ -104,12 +107,13 @@ db.prepare = function(db, stmt, params) {
 #' db.close(db)
 #' @export
 db.eval = function(db, stmt, params
-        , df=getOption("DBPKG_DATAFRAME_RETURN", FALSE)
+        , row_factory="identity"
         , simplify=getOption("DBPKG_SIMPLIFY_RETURN", FALSE)) {
     stopifnot(is(db, "database"))
     cursor = db.prepare(db, stmt, params)
-    ans = db.fetch(cursor, df)
-    if (simplify && !is.null(ans)) {
+    ans = db.fetch(cursor, row_factory)
+    if (simplify && !is.null(ans) && (row_factory=="identity" ||
+        row_factory=="data.frame")) {
         if (nrow(ans) == 1) {
             ans = ans[1,]
             if (is.list(ans) && length(ans) == 1)
@@ -141,17 +145,15 @@ db.exec = function(db, script) {
 #'
 #' @param cur The cursor returned by \code{db.eval}. An S4 object of class
 #' "cursor".
-#' @param df A boolean. Should the result be returned as a data.frame?
-#' @return A matrix (df=FALSE) or data.frame (df=TRUE) containing the rows
-#' from the result set. If \code{df=FALSE} subsets of the matrix will
-#' return lists rather than atomic vectors.
+#' @param row_factory The name of a function to apply to each row of the result
+#' set before it is returned.
 #' @note The cursor is invalidated afterwards. Do not attempt to use it
 #' again.
-db.fetch = function(cur, df) {
+db.fetch = function(cur, row_factory) {
     if (is.null(cur))
         return (NULL)
     stopifnot(is(cur, "cursor"))
-    return (.Call(db_fetch, cur@stmt, cur@handle, as.logical(df)))
+    return (.Call(db_fetch, cur@stmt, cur@handle, row_factory))
 }
 
 

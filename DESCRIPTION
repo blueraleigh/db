@@ -28,4 +28,4 @@ Collate: db-package.R
   db-sqlar.R
   db-subst.R
   db-vtable.R
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2

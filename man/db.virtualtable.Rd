@@ -150,9 +150,9 @@ current row of data. The default method does nothing.
 function(db, table, env, rid, ...)
 
 The \code{.insert} function is called in response to an INSERT statement on
-a virtual table. If it returns NULL the table is marked
+a virtual table. If it returns NA the table is marked
 as read only and the operation is prohibited. The default method returns
-NULL.
+NA.
 
 Values in \code{...} contain the data being inserted. The values will be in
 the same length and order as the table's declared columns. Any columns not
@@ -168,9 +168,9 @@ The function should return the value of the newly inserted rowid.
 function(db, table, env, rid, oid, ...)
 
 The \code{.update} function is called in response to an
-UPDATE statement on a virtual table. If it returns NULL the table is marked
+UPDATE statement on a virtual table. If it returns NA the table is marked
 as read only and the operation is prohibited. The default method returns
-NULL.
+NA.
 
 Values in \code{...} contain the data being modified. The values will be in
 the same length and order as the table's declared columns. Any columns not
@@ -179,8 +179,6 @@ supplied in the update statement will be represented as \code{NA} in \code{...}
 \code{oid} indicates the rowid of the data being modified. If \code{rid != oid}
 then this indicates that the rowid of the updated row is
 being changed from \code{oid} to \code{rid}.
-
-The function should return \code{NA}.
 }
 
 \section{The \code{.delete} method}{
@@ -188,13 +186,11 @@ The function should return \code{NA}.
 function(db, table, env, rid)
 
 The \code{.delete} function is called in response to a DELETE
-statement on a virtual table. If it returns NULL the table is marked
+statement on a virtual table. If it returns NA the table is marked
 as read only and the operation is prohibited. The default method returns
-NULL.
+NA.
 
 \code{rid} indicates the rowid of data to be deleted.
-
-The function should return \code{NA}.
 }
 
 \section{The \code{.bestindex} method}{

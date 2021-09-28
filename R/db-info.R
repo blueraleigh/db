@@ -24,7 +24,7 @@ db.schema = function(db, table) {
     {
         return (db.eval(db,
             "SELECT name,sql AS schema FROM sqlite_master WHERE type='table'"
-            , df=TRUE))
+            , row_factory="data.frame"))
     }
     else
     {
@@ -33,7 +33,7 @@ db.schema = function(db, table) {
         stmt = sprintf(
             "SELECT name,sql AS schema FROM sqlite_master WHERE name IN (%s)",
             paste0(rep("?", ntbl), collapse=","))
-        return (db.eval(db, stmt, as.list(table), TRUE))
+        return (db.eval(db, stmt, as.list(table), row_factory="data.frame"))
     }
 }
 
@@ -50,7 +50,7 @@ db.fields = function(db, table) {
     return (db.eval(
         db,
         "SELECT name,type FROM pragma_table_info(?)",
-        table[1L], TRUE))
+        table[1L], row_factory="data.frame"))
 }
 
 #' Check for the existence of a database table, view, or index

@@ -151,7 +151,7 @@ SEXP db_fetch(SEXP Cur, SEXP Db)
 }
 */
 
-SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
+SEXP db_fetch(SEXP Cur, SEXP Db, SEXP Rf)
 {
     int i;
     int j;
@@ -172,8 +172,9 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
     SEXP root = PROTECT(list1(buf = allocVector(VECSXP, 5000)));
     SEXP tail = root;
     SEXP colnames;
-    SEXP rownames;
     SEXP dims;
+
+    const char * rf_name = CHAR(STRING_ELT(Rf, 0));
 
     rc = sqlite3_step(pStmt);
     if (rc == SQLITE_ROW)
@@ -206,7 +207,7 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
     {
         nrow = nelem / ncol;
         end = 0;
-        if (!INTEGER(AsDf)[0])
+        if (strcmp(rf_name, "identity") == 0)
         {
             SEXP res = PROTECT(allocVector(VECSXP, nelem)); ++nprotect;
             while (root != R_NilValue)
@@ -237,7 +238,7 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
             UNPROTECT(nprotect);
             return res;
         }
-        else
+        else if (strcmp(rf_name, "data.frame") == 0)
         {
             SEXP res = PROTECT(allocVector(VECSXP, ncol)); ++nprotect;
             SEXP rownames = PROTECT(allocVector(INTSXP, nrow)); ++nprotect;
@@ -282,6 +283,42 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP AsDf)
             setAttrib(res, R_NamesSymbol, colnames);
             setAttrib(res, R_ClassSymbol, mkString("data.frame"));
             setAttrib(res, mkString("row.names"), rownames);
+            UNPROTECT(nprotect);
+            return res;
+        }
+        else
+        {
+            SEXP row = PROTECT(allocVector(VECSXP, ncol)); ++nprotect;
+            SEXP res = PROTECT(allocVector(VECSXP, nrow)); ++nprotect;
+            SEXP row_factory = PROTECT(lcons(install(rf_name), R_NilValue));
+            ++nprotect;
+
+            setAttrib(row, R_NamesSymbol, colnames);
+
+            while (root != R_NilValue)
+            {
+                size = (CDR(root) == R_NilValue) ? count : 5000;
+                for (i = 0; i < size; ++i, ++end) {
+                    // results are currently stored as row-major array
+                    // with 'ncol' columns and 'nrow' rows.
+                    // 'end' is the index position in that array
+                    // here is the column index ...
+                    k = end % ncol;
+                    // ... and here is the row index
+                    j = (end - k) / ncol;
+                    // to convert 'end' to an index position in a
+                    // column-major array we use
+                    //   row + col * nrow = end (col-major)
+                    // instead of
+                    //   col + row * ncol = end (row-major)
+                    SET_VECTOR_ELT(row, k, VECTOR_ELT(CAR(root), i));
+                    if (k == (ncol - 1)) {
+                        SETCDR(row_factory, list1(row));
+                        SET_VECTOR_ELT(res, j, eval(row_factory, R_GlobalEnv));
+                    }
+                }
+                root = CDR(root);
+            }
             UNPROTECT(nprotect);
             return res;
         }

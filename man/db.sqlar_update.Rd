@@ -4,10 +4,12 @@
 \alias{db.sqlar_update}
 \title{Update the content of a SQLite archive}
 \usage{
-db.sqlar_update(db, path)
+db.sqlar_update(db, name, path)
 }
 \arguments{
 \item{db}{The database connection. S4 object of class "database".}
+
+\item{name}{The name of the SQLite archive table.}
 
 \item{path}{The path to the top-level directory of the archive.}
 }
@@ -20,7 +22,7 @@ Update the content of a SQLite archive
 \details{
 This will update the sqlar table in the database to reflect
 any changes made to the files under \code{path} (including file
-additions and deletions and changed file permissions).
+additions and changed file permissions).
 }
 \note{
 The \code{\link{sqlar_compress}} function must be registered
