@@ -4,8 +4,8 @@
     db.eval(db, stmt, as.list(files))
 }
 
-.sqlar.insert = function(db, name, fstat, files, ignore.path) {
-    fstat = fstat[file.path(normalizePath(ignore.path), files), ]
+.sqlar.insert = function(db, name, fstat, dir.name, file.names) {
+    fstat = fstat[file.path(normalizePath(dir.name), file.names), ]
     for (i in 1:nrow(fstat)) {
         if (fstat$isdir[i]) {
             db.eval(
@@ -13,19 +13,18 @@
                 , sprintf(
                     "INSERT INTO \"%s\"(name,mode,mtime,sz) VALUES(?,?,?,?)", name)
                 , list(
-                    files[i]
+                    file.names[i]
                     , unclass(fstat$mode[i])
                     , as.integer(unclass(fstat$mtime[i]))
                     , 0))
         } else {
-            f = rownames(fstat)[i]
-            raw = readBin(f, "raw", fstat$size[i])
+            raw = readBin(rownames(fstat)[i], "raw", fstat$size[i])
             db.eval(
                 db
                 , sprintf(
                     "INSERT INTO \"%s\" VALUES(?,?,?,?,sqlar_compress(?))", name)
                 , list(
-                    files[i]
+                    file.names[i]
                     , unclass(fstat$mode[i])
                     , as.integer(unclass(fstat$mtime[i]))
                     , fstat$size[i]
@@ -34,11 +33,13 @@
     }
 }
 
-.sqlar.update = function(db, name, fstat, files.content, files.mode, ignore.path) {
-    files = union(files.content, files.mode)
-    fstat = fstat[file.path(normalizePath(ignore.path), files), ]
+.sqlar.update = function(db, name, fstat, dir.name, 
+    files.new.content, files.new.mode) 
+{
+    files = union(files.new.content, files.new.mode)
+    fstat = fstat[file.path(normalizePath(dir.name), files), ]
     for (i in 1:nrow(fstat)) {
-        if (fstat$isdir[i] || files[i] %in% files.mode) {
+        if (fstat$isdir[i] || files[i] %in% files.new.mode) {
             db.eval(
                 db
                 , sprintf("UPDATE \"%s\" SET mode=?, mtime=? WHERE name=?", name)
@@ -47,8 +48,7 @@
                     , as.integer(unclass(fstat$mtime[i]))
                     , files[i]))
         } else {
-            f = rownames(fstat)[i]
-            raw = readBin(f, "raw", fstat$size[i])
+            raw = readBin(rownames(fstat)[i], "raw", fstat$size[i])
             db.eval(
                 db
                 , sprintf("UPDATE \"%s\" SET
@@ -74,7 +74,7 @@
 
 .sqlar.changed.content = function(db.mtimes, path.mtimes) {
     common.files = intersect(names(db.mtimes), names(path.mtimes))
-    return (common.files[db.mtimes[common.files] < path.mtimes[common.files]])
+    return (common.files[db.mtimes[common.files] != path.mtimes[common.files]])
 }
 
 #' Initialize the SQLite archive schema
@@ -123,40 +123,41 @@ db.sqlar_skeleton = function(db, name) {
 db.sqlar_update = function(db, name, path) {
     stopifnot(is(db, "database"))
     path = normalizePath(path)
-    ignore = paste(dirname(path), "/", sep="")
     topdir = basename(path)
-    flist = list.files(path, recursive=TRUE, include.dirs=TRUE,
+    file.list = list.files(path, recursive=TRUE, include.dirs=TRUE,
         full.names=TRUE)
-    path.names = gsub(ignore, "", flist, fixed=TRUE)
-    fstat = file.info(flist)
+    dir.name = paste(dirname(path), "/", sep="")
+    file.names = gsub(dir.name, "", file.list, fixed=TRUE)
+    fstat = file.info(file.list)
     sqlar = db.eval(db,
             sprintf("SELECT name,mtime,mode FROM \"%s\" WHERE name != ?", name),
             list(topdir), row_factory="data.frame")
     if (is.null(sqlar)) {
-    #    deleted.files = character()
-        added.files = path.names
-        changed.content = character()
-        changed.mode = character()
-        changed.mode.only = character()
+        deleted.files = character()
+        added.files = file.names
+        changed.files = character()
+        changed.files.mode = character()
+        changed.files.mode.only = character()
     } else {
         rownames(sqlar) = sqlar$name
-    #    deleted.files = setdiff(sqlar$name, path.names)
-        added.files = setdiff(path.names, sqlar$name)
-        changed.content = .sqlar.changed.content(
+        deleted.files = setdiff(sqlar$name, file.names)
+        added.files = setdiff(file.names, sqlar$name)
+        changed.files = .sqlar.changed.content(
             structure(as.POSIXct(sqlar$mtime, origin="1970-01-01"),
                 names=sqlar$name),
-            structure(fstat$mtime, names=path.names))
-        changed.mode = .sqlar.changed.mode(
+            structure(fstat$mtime, names=file.names))
+        changed.files.mode = .sqlar.changed.mode(
             structure(as.octmode(sqlar$mode), names=sqlar$name),
-            structure(fstat$mode, names=path.names))
-        changed.mode.only = setdiff(changed.mode, changed.content)
+            structure(fstat$mode, names=file.names))
+        changed.files.mode.only = setdiff(changed.files.mode, changed.files)
     }
-    #if (length(deleted.files))
-    #    .sqlar.delete(db, name, deleted.files)
+    if (length(deleted.files))
+        .sqlar.delete(db, name, deleted.files)
     if (length(added.files))
-        .sqlar.insert(db, name, fstat, added.files, ignore)
+        .sqlar.insert(db, name, fstat, dir.name, added.files)
     if (length(changed.content) || length(changed.mode.only))
-        .sqlar.update(db, name, fstat, changed.content, changed.mode.only, ignore)
+        .sqlar.update(db, name, fstat, dir.name, changed.files, 
+            changed.files.mode.only)
 }
 
 #' Create a SQLite archive
@@ -179,17 +180,22 @@ db.sqlar = function(db, name, path) {
     stopifnot(is(db, "database"))
     db.sqlar_skeleton(db, name)
     if (db.eval(db, sprintf("SELECT COUNT(*) FROM \"%s\"", name))[[1]] > 0L)
-        stop("sqlar table already in use")
+        stop(gettextf("sqlar table already in use"))
     path = normalizePath(path)
-    ignore = paste(dirname(path), "/", sep="")
     topdir = basename(path)
-    flist = list.files(
+    dir.name = paste(dirname(path), "/", sep="")
+    file.list = list.files(
         path, recursive=TRUE, include.dirs=TRUE, full.names=TRUE)
-    fstat = file.info(flist)
+    fstat = file.info(file.list)
+    file.names = gsub(dir.name, "", file.list, fixed=TRUE)
     db.eval(db,
         sprintf("INSERT INTO \"%s\"(name,mode,mtime,sz) VALUES(?,?,?,?)", name),
-        list(topdir, unclass(file.mode(path)), as.integer(unclass(file.mtime(path))), 0))
-    .sqlar.insert(db, name, fstat, gsub(ignore, "", flist, fixed=TRUE), ignore)
+        list(topdir
+            , unclass(file.mode(path))
+            , as.integer(unclass(file.mtime(path)))
+            , 0)
+    )
+    .sqlar.insert(db, name, fstat, dir.name, file.names)
 }
 
 #' Return the root directory of a SQLite archive
@@ -228,7 +234,7 @@ db.unsqlar = function(db, name, path, files) {
         stmt = sprintf("
         SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
-        FROM \"%s\" ORDER BY sz,rowid", name)
+        FROM \"%s\" ORDER BY sz ASC,rowid ASC", name)
         params = list(list())
     } else {
         nfiles = length(files)
@@ -237,7 +243,7 @@ db.unsqlar = function(db, name, path, files) {
         stmt = sprintf("
         SELECT
             name,mode,mtime,sqlar_uncompress(data,sz) AS data
-        FROM \"%s\" WHERE %s ORDER BY sz,rowid", name, like)
+        FROM \"%s\" WHERE %s ORDER BY sz ASC,rowid ASC", name, like)
         params = list(as.list(paste0("%", files, "%")))
 
     }

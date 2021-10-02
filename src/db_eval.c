@@ -174,7 +174,7 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP Rf)
     SEXP colnames;
     SEXP dims;
 
-    const char * rf_name = CHAR(STRING_ELT(Rf, 0));
+    const char *rf_name = CHAR(STRING_ELT(Rf, 0));
 
     rc = sqlite3_step(pStmt);
     if (rc == SQLITE_ROW)
