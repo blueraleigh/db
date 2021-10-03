@@ -348,3 +348,16 @@ db.reply_file = function(resp, filename) {
         , 'UPDATE reply SET content = ?'
         , readBin(filename, "raw", file.size(filename)))
 }
+
+
+#' Return a raw vector as the HTTP response
+#'
+#' @param resp The HTTP response being formed
+#' @param raw Binary data that forms the response
+#' @export
+db.reply_raw = function(resp, raw) {
+    db.eval(
+        resp
+        , 'UPDATE reply SET content = ?'
+        , raw)
+}
