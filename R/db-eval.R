@@ -183,5 +183,8 @@ db.lapply = function(db, stmt, params, FUN, ...) {
     cur = db.prepare(db, stmt, params)
     if (is.null(cur))
         return (list())
-    .Call(db_lapply, cur@handle, cur@stmt, match.fun(FUN), list(...))
+    obj = .Call(db_lapply, cur@handle, cur@stmt, match.fun(FUN), list(...))
+    if (is.null(obj))
+        return (list())
+    obj
 }

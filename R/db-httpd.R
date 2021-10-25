@@ -80,7 +80,7 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
     if (!METHOD %in% c("GET", "POST"))
         return (
             list("Requested method not supported", "text/plain", NULL, 405L))
-
+    
     # e.g. /custom/specimen.db/specimen/images/1234
     PATH_ROOT = db.urlpath(path, "root") # => /custom/specimen.db
     PATH_NAME = db.urlpath(path, "name") # => specimen.db
@@ -190,7 +190,7 @@ db.ui = db.help
 #' @export
 db.urlpath = local({
 
-    re = "(?:^|(?<=/))([a-zA-Z0-9\\._~-]+)(?=(?:[/?]|$))"
+    re = "(?:^|(?<=/))([a-zA-Z0-9 \\._%~-]+)(?=(?:[/?]|$))"
 
     urlpath_root = function(path) {
         matches = regmatches(path, gregexpr(re, path, perl=TRUE))[[1]]

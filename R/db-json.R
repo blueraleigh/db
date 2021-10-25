@@ -14,11 +14,13 @@
 #' @note This does require that SQLite was compiled with the option
 #' -DSQLITE_ENABLE_JSON1.
 #' @export
-db.json = function(db, table, file=NULL) {
+db.dumpJSON = function(db, table, file=NULL) {
     stopifnot(is(db, "database"))
     if (missing(table)) {
         tables = db.tables(db)
         ntables = length(tables)
+        if (ntables == 0)
+            return ("{}")
         stmt = character(ntables)
         for (i in 1:ntables) {
             spec = paste0(
@@ -52,4 +54,180 @@ db.json = function(db, table, file=NULL) {
     if (is.null(file))
         return (db.eval(db, stmt)[[1]])
     cat(db.eval(db, stmt)[[1]], file=file)
+}
+
+
+#' Unserialize a JSON string to an R object
+db.fromJSON = function(db, json) {
+
+    read_json_object = function(db, json) {
+        jsn = db.eval(db, "SELECT key,value,type FROM json_each(?)", json)
+        obj = structure(vector("list", nrow(jsn)), names=unname(unlist(jsn[,1])))
+        for (i in 1:nrow(jsn)) {
+            obj[[i]] = switch(jsn[i,3][[1]],
+                object=read_json_object(db, jsn[i,2][[1]]),
+                array=read_json_array(db, jsn[i,2][[1]]),
+                integer=as.integer(jsn[i,2][[1]]),
+                real=as.numeric(jsn[i,2][[1]]),
+                text=jsn[i,2][[1]]
+            )
+        }
+        obj
+    }
+
+    read_json_array = function(db, json) {
+        jsn = db.eval(db, "SELECT key,value,type FROM json_each(?)", json)
+        type = jsn[1,3][[1]]
+        len = nrow(jsn)
+        obj = vector("list", len)
+
+        for (i in 1:nrow(jsn)) {
+            obj[[i]] = switch(type,
+                object=read_json_object(db, jsn[i,2][[1]]),
+                array=read_json_array(db, jsn[i,2][[1]]),
+                integer=as.integer(jsn[i,2][[1]]),
+                real=as.numeric(jsn[i,2][[1]]),
+                text=jsn[i,2][[1]]
+            )
+        }
+
+        if (type %in% c('integer', 'real', 'text'))
+            obj = unlist(obj)
+
+        obj
+    }
+
+    read_json = function(db, json) {
+        switch(
+            db.eval(db, "SELECT json_type(?)", json)[[1]],
+            object=read_json_object(db, json),
+            array=read_json_array(db, json),
+            integer=as.integer(json),
+            real=as.numeric(json),
+            text=json
+        )
+    }
+
+    obj = try(read_json(db, json), silent=TRUE)
+    if (inherits(obj, "try-error"))
+        stop(gettextf(attr(obj, "condition")$message))
+    obj
+}
+
+
+#' Serialize an R object to a JSON string
+db.toJSON = function(db, object) {
+    dataframe_to_json = function(db, object) {
+        class_to_sql = function(cls) {
+            switch(cls,
+                numeric="REAL",
+                integer="INTEGER",
+                factor=,
+                character="TEXT",
+                "BLOB"
+            )
+        }
+        df_to_schema = function(df, name) {
+            schema = sprintf("CREATE TABLE %s(", name)
+            col_types = lapply(df, function(v) {
+                class_to_sql(class(v))
+            })
+            col_names = names(col_types)
+            schema = sprintf("%s\n \"%s\" %s", schema, col_names[1], col_types[1])
+            if (ncol(df) > 1) {
+                for (i in 2:ncol(df))
+                {
+                    schema = sprintf(
+                        "%s\n, \"%s\" %s", schema, col_names[i], col_types[i])
+                }
+            }
+            schema = sprintf("%s\n)", schema)
+            schema
+        }
+        if (is.character(attr(object, "row.names")))
+            object = cbind(object, `_row`=rownames(object))
+        db.eval(db, df_to_schema(object, "temp.df"))
+        for (p in which(sapply(object, class) %in% "factor"))
+             object[, p] = as.character(object[, p])
+        stmt = sprintf(
+            "INSERT INTO df VALUES(%s)", 
+            paste0(rep("?", ncol(object)), collapse=","))
+        db.eval(db, stmt, object)
+        json = db.dumpJSON(db, "df")
+        db.eval(db, "DROP TABLE df")
+        json
+    }
+    list_to_json = function(db, object) {
+        keys = names(object)
+        if (!is.null(keys)) {
+            json = "{}"
+            for (key in keys) {
+                json = db.eval(
+                    db, 
+                    "SELECT json_insert(?, ?, json(?))",
+                    list(list(
+                        json, 
+                        sprintf("$.%s", key), 
+                        to_json(db, object[[key]])
+                    ))
+                )[[1]]
+            }
+        } else {
+            json = "[]"
+            for (i in 1:length(object)) {
+                json = db.eval(
+                    db, 
+                    "SELECT json_insert(?, ?, json(?))",
+                    list(list(
+                        json, 
+                        "$[#]", 
+                        to_json(db, object[[i]])
+                    ))
+                )[[1]]
+            }
+        }
+        json
+    }
+    atomic_to_json = function(db, object) {
+        json = "[]"
+        for (i in 1:length(object)) {
+            json = db.eval(
+                db, 
+                "SELECT json_insert(?, ?, json(?))",
+                list(list(
+                    json, 
+                    "$[#]", 
+                    to_json(db, object[i])
+                ))
+            )[[1]]
+        }
+        json
+    }
+    scalar_to_json = function(db, object) {
+        switch(class(object),
+            numeric=,
+            integer=object,
+            factor=,
+            character=sprintf("\"%s\"", as.character(object))
+        )
+    }
+    to_json = function(db, object) {
+        if (is.data.frame(object))
+            return (dataframe_to_json(db, object))
+        else if (is.list(object))
+            return (list_to_json(db, object))
+        else if (is.atomic(object)) {
+            if (length(object) > 1)
+                return (atomic_to_json(db, object))
+            else
+                return (scalar_to_json(db, object))
+        }
+        else
+            stop(gettextf("no serialization format for objects of class '%s'",
+                class(object)))
+    }
+    json = try(to_json(db, object), silent=TRUE)
+    if (inherits(json, "try-error"))
+        stop(gettextf(attr(json, "condition")$message))
+    json
 }
