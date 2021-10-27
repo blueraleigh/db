@@ -333,7 +333,7 @@ db.reply_redirect = function(resp, location) {
 db.reply = function(resp, text) {
     db.eval(
         resp
-        , "UPDATE reply SET content = content || ? || '\n'"
+        , "UPDATE reply SET content = content || '\n' || ?"
         , text)
 }
 
