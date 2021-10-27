@@ -184,14 +184,15 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP Rf)
         for (j = 0; j < ncol; ++j)
             SET_STRING_ELT(colnames, j, mkChar(sqlite3_column_name(pStmt, j)));
         do {
-            for (j = 0; j < ncol; ++j)
-                SET_VECTOR_ELT(buf, count++, convert_column_to_sexp(pStmt, j));
-            nelem += ncol;
-            if (count == 5000)
+            for (j = 0; j < ncol; ++j, ++nelem)
             {
-                tail = SETCDR(tail, list1(buf = allocVector(VECSXP, 5000)));
-                count = 0;
-            }
+                SET_VECTOR_ELT(buf, count++, convert_column_to_sexp(pStmt, j));
+                if (count == 5000)
+                {
+                    tail = SETCDR(tail, list1(buf = allocVector(VECSXP, 5000)));
+                    count = 0;
+                }
+            }        
         } while ((rc = sqlite3_step(pStmt)) == SQLITE_ROW);
     }
 
