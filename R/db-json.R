@@ -61,40 +61,38 @@ db.dumpJSON = function(db, table, file=NULL) {
 db.fromJSON = function(db, json) {
 
     read_json_object = function(db, json) {
-        jsn = db.eval(db, "SELECT key,value,type FROM json_each(?)", json)
-        obj = structure(vector("list", nrow(jsn)), names=unname(unlist(jsn[,1])))
-        for (i in 1:nrow(jsn)) {
-            obj[[i]] = switch(jsn[i,3][[1]],
-                object=read_json_object(db, jsn[i,2][[1]]),
-                array=read_json_array(db, jsn[i,2][[1]]),
-                integer=as.integer(jsn[i,2][[1]]),
-                real=as.numeric(jsn[i,2][[1]]),
-                text=jsn[i,2][[1]]
-            )
-        }
-        obj
+        n = db.eval(db, "SELECT COUNT(*) FROM json_each(?)", json)[[1]]
+        keys = character(n)
+        obj = db.lapply(db, "SELECT rowid,key,value,type FROM json_each(?)", json, 
+            FUN=function(l) {
+                keys[l$rowid+1L] <<- l$key
+                switch(l$type,
+                    object=read_json_object(db, l$value),
+                    array=read_json_array(db, l$value),
+                    integer=as.integer(l$value),
+                    real=as.numeric(l$value),
+                    text=l$value
+                    )
+            }
+        )
+        return (structure(obj, names=keys))
     }
 
     read_json_array = function(db, json) {
-        jsn = db.eval(db, "SELECT key,value,type FROM json_each(?)", json)
-        type = jsn[1,3][[1]]
-        len = nrow(jsn)
-        obj = vector("list", len)
-
-        for (i in 1:nrow(jsn)) {
-            obj[[i]] = switch(type,
-                object=read_json_object(db, jsn[i,2][[1]]),
-                array=read_json_array(db, jsn[i,2][[1]]),
-                integer=as.integer(jsn[i,2][[1]]),
-                real=as.numeric(jsn[i,2][[1]]),
-                text=jsn[i,2][[1]]
-            )
-        }
-
-        if (type %in% c('integer', 'real', 'text'))
-            obj = unlist(obj)
-
-        obj
+        arr = db.lapply(db, "SELECT key,value,type FROM json_each(?)", json, 
+            FUN=function(l) {
+                switch(l$type,
+                    object=read_json_object(db, l$value),
+                    array=read_json_array(db, l$value),
+                    integer=as.integer(l$value),
+                    real=as.numeric(l$value),
+                    text=l$value
+                    )
+            }
+        )
+        if (inherits(arr[[1]], c("character", "numeric", "integer")))
+            arr = unlist(arr)
+        arr
     }
 
     read_json = function(db, json) {
@@ -174,6 +172,8 @@ db.toJSON = function(db, object) {
             }
         } else {
             json = "[]"
+            if (length(object) == 0)
+                return (json)
             for (i in 1:length(object)) {
                 json = db.eval(
                     db, 
@@ -190,6 +190,8 @@ db.toJSON = function(db, object) {
     }
     atomic_to_json = function(db, object) {
         json = "[]"
+        if (length(object) == 0)
+            return (json)
         for (i in 1:length(object)) {
             json = db.eval(
                 db, 
@@ -206,7 +208,7 @@ db.toJSON = function(db, object) {
     scalar_to_json = function(db, object) {
         switch(class(object),
             numeric=,
-            integer=object,
+            integer=unname(object),
             factor=,
             character=sprintf("\"%s\"", as.character(object))
         )
@@ -217,7 +219,7 @@ db.toJSON = function(db, object) {
         else if (is.list(object))
             return (list_to_json(db, object))
         else if (is.atomic(object)) {
-            if (length(object) > 1)
+            if (length(object) > 1 || !length(object))
                 return (atomic_to_json(db, object))
             else
                 return (scalar_to_json(db, object))
