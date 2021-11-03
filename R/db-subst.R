@@ -6,7 +6,7 @@
 #' @details The input \code{text} is searched for text enclosed
 #' between <% and %>, which it treats as a sequence of expressions and evaluates
 #' in the calling frame, substituting the value of the last evaluated
-#' expression in place of the text between delimiters.
+#' expression (if it is a string) in place of the text between delimiters.
 #' @return The input character string with the values returned from
 #' any expressions between braces substituted in place.
 #' @note Currently delimiters do not nest. That is, the function will stop
