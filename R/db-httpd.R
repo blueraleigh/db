@@ -28,8 +28,8 @@
 #'        <body>
 #'        <h1>Welcome!</h1>
 #'        <ul>
-#'        <li><a href="{req$PATH_ROOT}/page1">page 1</a></li>
-#'        <li><a href="{req$PATH_ROOT}/page2">page 2</a></li>
+#'        <li><a href="<%req$PATH_ROOT%>/page1">page 1</a></li>
+#'        <li><a href="<%req$PATH_ROOT%>/page2">page 2</a></li>
 #'        <ul>
 #'        </body>
 #'        </html>
@@ -39,7 +39,7 @@
 #'     db.reply(resp, db.subst(db, '
 #'         <html>
 #'         <body>
-#'         <a href="{req$PATH_ROOT}">hello, world!</a>
+#'         <a href="<%req$PATH_ROOT%>">hello, world!</a>
 #'         </body>
 #'         </html>
 #'     '))
@@ -48,7 +48,7 @@
 #'     db.reply(resp, db.subst(db, '
 #'         <html>
 #'         <body>
-#'         <a href="{req$PATH_ROOT}">take me home, please.</a>
+#'         <a href="<%req$PATH_ROOT%>">take me home, please.</a>
 #'         </body>
 #'         </html>
 #'     '))
