@@ -8,11 +8,11 @@ test1 = function() {
     bar = function() return ("bar")
     c(
         # foo bar
-        db.subst(db, "foo {bar()}")
+        db.subst(db, "foo <%bar()%>")
         # foo # note a trailing space
-        , db.subst(db, "foo {bar}")
+        , db.subst(db, "foo <%bar%>")
         # foo function () return(\"bar\")
-        , db.subst(db, "foo {paste0(deparse(bar), collapse='')}")
+        , db.subst(db, "foo <%paste0(deparse(bar), collapse='')%>")
     )
 }
 
