@@ -79,8 +79,11 @@ db.fromJSON = function(db, json) {
     }
 
     read_json_array = function(db, json) {
-        arr = db.lapply(db, "SELECT key,value,type FROM json_each(?)", json, 
+        n = db.eval(db, "SELECT COUNT(*) FROM json_each(?)", json)[[1]]
+        types = character(n)
+        arr = db.lapply(db, "SELECT rowid,key,value,type FROM json_each(?)", json, 
             FUN=function(l) {
+                types[l$rowid+1L] <<- l$type
                 switch(l$type,
                     object=read_json_object(db, l$value),
                     array=read_json_array(db, l$value),
@@ -90,8 +93,20 @@ db.fromJSON = function(db, json) {
                     )
             }
         )
-        if (inherits(arr[[1]], c("character", "numeric", "integer")))
+        
+        #if (inherits(arr[[1]], c("character", "numeric", "integer")))
+        #    arr = unlist(arr)
+
+        if (all(types == types[1L]) && types[1L] %in% c("text", "real", "integer"))
             arr = unlist(arr)
+        if (all(types == "array")) {
+            dims = lapply(arr, dim)
+            if (all(sapply(dims, is.null)))
+                arr = do.call(rbind, arr)
+            else if (length(ud <- unique(dims)) == 1)
+                arr = array(unlist(arr), dim=c(ud[[1]], length(arr)))
+        }
+
         arr
     }
 
@@ -192,16 +207,47 @@ db.toJSON = function(db, object) {
         json = "[]"
         if (length(object) == 0)
             return (json)
-        for (i in 1:length(object)) {
-            json = db.eval(
-                db, 
-                "SELECT json_insert(?, ?, json(?))",
-                list(list(
-                    json, 
-                    "$[#]", 
-                    to_json(db, object[i])
-                ))
-            )[[1]]
+        if (!is.null(dims <- dim(object))) {
+            nd = length(dims)
+            if (nd > 2) {
+                idx = slice.index(object, nd)
+                for (i in 1:max(idx)) {
+                    json = db.eval(
+                        db, 
+                        "SELECT json_insert(?, ?, json(?))",
+                        list(list(
+                            json, 
+                            "$[#]", 
+                            to_json(db, 
+                                structure(object[idx == i], dim=head(dims, -1)))
+                        ))
+                    )[[1]]
+                }
+            } else {
+                for (i in 1:nrow(object)) {
+                    json = db.eval(
+                        db, 
+                        "SELECT json_insert(?, ?, json(?))",
+                        list(list(
+                            json, 
+                            "$[#]", 
+                            to_json(db, object[i,])
+                        ))
+                    )[[1]]
+                }
+            }
+        } else {
+            for (i in 1:length(object)) {
+                json = db.eval(
+                    db, 
+                    "SELECT json_insert(?, ?, json(?))",
+                    list(list(
+                        json, 
+                        "$[#]", 
+                        to_json(db, object[i])
+                    ))
+                )[[1]]
+            }
         }
         json
     }
@@ -210,7 +256,8 @@ db.toJSON = function(db, object) {
             numeric=,
             integer=unname(object),
             factor=,
-            character=sprintf("\"%s\"", as.character(object))
+            character=sprintf("\"%s\"", as.character(object)),
+            logical=as.integer(unname(object))
         )
     }
     to_json = function(db, object) {
