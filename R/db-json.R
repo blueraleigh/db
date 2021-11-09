@@ -75,7 +75,12 @@ db.fromJSON = function(db, json) {
                     )
             }
         )
-        return (structure(obj, names=keys))
+        obj = structure(obj, names=keys)
+        if ("_row" %in% keys) {
+            rk = match("_row", keys)
+            obj = structure(obj[-rk], class="data.frame", row.names=obj[[rk]])
+        }
+        return (obj)
     }
 
     read_json_array = function(db, json) {
@@ -106,7 +111,10 @@ db.fromJSON = function(db, json) {
             else if (length(ud <- unique(dims)) == 1)
                 arr = array(unlist(arr), dim=c(ud[[1]], length(arr)))
         }
-
+        else if (all(types == "object")) {
+            if (all(sapply(arr, is.data.frame)))
+                arr = do.call(rbind, arr)
+        }
         arr
     }
 
@@ -256,7 +264,7 @@ db.toJSON = function(db, object) {
             numeric=,
             integer=unname(object),
             factor=,
-            character=sprintf("\"%s\"", as.character(object)),
+            character=sprintf("\"%s\"", as.character(unname(object))),
             logical=as.integer(unname(object))
         )
     }
