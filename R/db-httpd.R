@@ -14,7 +14,7 @@
 #' may consist of multiple parts. \code{db.httpd} will use the
 #' path <head> to dispatch to a function of that name, which is
 #' expected to generate the http response. This behavior follows closely
-#' the Wapp framework (wpp.tcl.tk). The function will receive
+#' the Wapp framework (wapp.tcl.tk). The function will receive
 #' the database connection, a named list of request data, and a response
 #' object that it is expected to fill out using the \code{db.reply*}
 #' family of functions.
