@@ -4,7 +4,8 @@
 #include "convert.h"
 
 
-static void db_r_sql_func(sqlite3_context *context, int argc,
+static void
+db_r_sql_func(sqlite3_context *context, int argc,
     sqlite3_value **argv)
 {
     SEXP fun = sqlite3_user_data(context);
@@ -31,13 +32,15 @@ static void db_r_sql_func(sqlite3_context *context, int argc,
 }
 
 
-static void db_release_function(void *fun)
+static void
+db_release_function(void *fun)
 {
     R_ReleaseObject((SEXP)fun);
 }
 
 
-SEXP db_create_function(SEXP Db, SEXP fun, SEXP funname)
+SEXP
+db_create_function(SEXP Db, SEXP fun, SEXP funname)
 {
     sqlite3 *db = (sqlite3 *)R_ExternalPtrAddr(Db);
     if (fun == R_NilValue) {

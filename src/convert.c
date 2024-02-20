@@ -1,6 +1,7 @@
 #include "convert.h"
 
-SEXP convert_null_to_sexp(const char *decltype)
+SEXP
+convert_null_to_sexp(const char *decltype)
 {
     if (sqlite3_stricmp(decltype, "int") == 0
         || sqlite3_stricmp(decltype, "integer") == 0)
@@ -16,7 +17,8 @@ SEXP convert_null_to_sexp(const char *decltype)
 }
 
 
-SEXP convert_value_to_sexp(sqlite3_value *value)
+SEXP
+convert_value_to_sexp(sqlite3_value *value)
 {
     int n, nprotect = 1;
     SEXP v, bytes, R_fcall;
@@ -59,7 +61,8 @@ SEXP convert_value_to_sexp(sqlite3_value *value)
 }
 
 
-SEXP convert_column_to_sexp(sqlite3_stmt *stmt, int i)
+SEXP
+convert_column_to_sexp(sqlite3_stmt *stmt, int i)
 {
     int n, nprotect = 1;
     SEXP v, bytes, R_fcall;
@@ -101,7 +104,8 @@ SEXP convert_column_to_sexp(sqlite3_stmt *stmt, int i)
 }
 
 
-void convert_sexp_to_result(SEXP val, sqlite3_context *ctx)
+void
+convert_sexp_to_result(SEXP val, sqlite3_context *ctx)
 {
     PROTECT(val);
     int done = 0;
@@ -177,7 +181,8 @@ void convert_sexp_to_result(SEXP val, sqlite3_context *ctx)
 }
 
 
-void convert_sexp_to_parameter(SEXP val, sqlite3_stmt *stmt, int i)
+void
+convert_sexp_to_parameter(SEXP val, sqlite3_stmt *stmt, int i)
 {
     PROTECT(val);
     int done = 0;

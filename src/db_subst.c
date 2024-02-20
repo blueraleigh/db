@@ -80,7 +80,8 @@ SEXP db_subst(SEXP db, SEXP txt, SEXP env) {
 
 
 
-static int in_delim(int i, const char *str)
+static int
+in_delim(int i, const char *str)
 {
     if (str[i++] == '%' && str[i] == '>')
         return 0;
@@ -175,7 +176,8 @@ SEXP db_subst(SEXP db, SEXP txt, SEXP env) {
 */
 
 /* a vectorized version */
-SEXP db_subst(SEXP db, SEXP txt, SEXP env) {
+SEXP
+db_subst(SEXP db, SEXP txt, SEXP env) {
 
     char c;
     char *ret;

@@ -4,7 +4,8 @@
 #include "sqlite3.h"
 #include "convert.h"
 
-static int isna(SEXP x)
+static
+int isna(SEXP x)
 {
     switch (TYPEOF(x)) {
         case LGLSXP:
@@ -22,32 +23,37 @@ static int isna(SEXP x)
 }
 
 
-static SEXP module_slot(SEXP module, const char *slot)
+static SEXP
+module_slot(SEXP module, const char *slot)
 {
     return R_do_slot(module, install(slot));
 }
 
 
-static SEXP module_db(SEXP module)
+static SEXP
+module_db(SEXP module)
 {
     return module_slot(module, "database");
 }
 
 
-static SEXP module_env(SEXP module)
+static SEXP
+module_env(SEXP module)
 {
     return module_slot(module, ".methodEnv");
 }
 
 
-static const char *module_name(SEXP module)
+static const char *
+module_name(SEXP module)
 {
     return CHAR(STRING_ELT(module_slot(module, "name"), 0));
 }
 
 
 /* Only used by RvtabCreate and RvtabConnect */
-static SEXP module_expression_eval(
+static SEXP
+module_expression_eval(
     SEXP module, const char *expr, int *err)
 {
 
@@ -61,7 +67,8 @@ static SEXP module_expression_eval(
 
 
 /* Used by all other virtual table methods */
-static SEXP module_method_eval(
+static SEXP
+module_method_eval(
     SEXP module, const char *method, SEXP args, int *err)
 {
     PROTECT(args);
@@ -78,7 +85,8 @@ static SEXP module_method_eval(
 
 
 /* Initialize argument list for virtual table method callbacks */
-static SEXP allocArgs(SEXP db, SEXP name, SEXP env, int n)
+static SEXP
+allocArgs(SEXP db, SEXP name, SEXP env, int n)
 {
     SEXP args = PROTECT(allocList(n));
     SETCAR(args, db);
@@ -114,7 +122,8 @@ struct Rvtab {
 ** arguments may be other R variables, function calls, etc. so long as they are
 ** defined in the create function's evaluation environment.
 */
-static int RvtabCreate(
+static int
+RvtabCreate(
     sqlite3 *db,
     /* R S4 object implementing virtual table module methods */
     void *pAux,
@@ -176,7 +185,8 @@ static int RvtabCreate(
 
 /* Called whenever the database connection attaches to or reparses
 ** a virtual table schema */
-static int RvtabConnect(
+static int
+RvtabConnect(
     sqlite3 *db,
     void *pAux,
     int argc,
@@ -234,7 +244,8 @@ static int RvtabConnect(
 
 
 /* Called whenever the database connection is closed */
-static int RvtabDisconnect(sqlite3_vtab *pVtab)
+static int
+RvtabDisconnect(sqlite3_vtab *pVtab)
 {
     int err = 0;
     struct Rvtab *vtab = (struct Rvtab *)pVtab;
@@ -252,7 +263,8 @@ static int RvtabDisconnect(sqlite3_vtab *pVtab)
 
 
 /* Called only for a DROP TABLE statement */
-static int RvtabDestroy(sqlite3_vtab *pVtab)
+static int
+RvtabDestroy(sqlite3_vtab *pVtab)
 {
     int err = 0;
     struct Rvtab *vtab = (struct Rvtab *)pVtab;
@@ -282,7 +294,8 @@ struct Rvtab_cursor {
 
 
 /* Creates a new cursor for reading and writing */
-static int RvtabOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor)
+static int
+RvtabOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor)
 {
     int err = 0;
     struct Rvtab *vtab = (struct Rvtab *)p;
@@ -309,7 +322,8 @@ static int RvtabOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor)
 
 
 /* Destroys the cursor created by RvtabOpen */
-static int RvtabClose(sqlite3_vtab_cursor *cur)
+static int
+RvtabClose(sqlite3_vtab_cursor *cur)
 {
     int err = 0;
     struct Rvtab_cursor *cursor = (struct Rvtab_cursor *)cur;
@@ -324,7 +338,8 @@ static int RvtabClose(sqlite3_vtab_cursor *cur)
 /* Called to initiate a search of the virtual table. The simplest
 ** implementation is just to have this method set the cursor so that
 ** it points to the first row of data. */
-static int RvtabFilter(
+static int
+RvtabFilter(
     sqlite3_vtab_cursor *pVtabCursor,
     int idxNum, const char *idxStr,
     int argc, sqlite3_value **argv
@@ -365,7 +380,8 @@ static int RvtabFilter(
 }
 
 /* Advance the cursor to the next row of data */
-static int RvtabNext(sqlite3_vtab_cursor *cur)
+static int
+RvtabNext(sqlite3_vtab_cursor *cur)
 {
     int err = 0;
     struct Rvtab_cursor *cursor = (struct Rvtab_cursor*)cur;
@@ -384,7 +400,8 @@ static int RvtabNext(sqlite3_vtab_cursor *cur)
 
 /* Return data in the i-th column of the current row. The i-index is
 ** 0 based, so it is incremented by 1 before the hand-off to R. */
-static int RvtabColumn(
+static int
+RvtabColumn(
     sqlite3_vtab_cursor *cur,   /* The cursor */
     sqlite3_context *ctx,       /* First argument to sqlite3_result_...() */
     int i                       /* Which column to return */
@@ -416,7 +433,8 @@ static int RvtabColumn(
 /* Called by SQLite when it is compiling a statement to execute.
 ** Used to plan the best way to run the query and access rows
 ** from the virtual table. */
-static int RvtabBestIndex(
+static int
+RvtabBestIndex(
     sqlite3_vtab *tab,
     sqlite3_index_info *pIdxInfo
 )
@@ -537,7 +555,8 @@ static int RvtabBestIndex(
 
 
 /* Returns the rowid of the current row of data */
-static int RvtabRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid)
+static int
+RvtabRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid)
 {
     int err = 0;
     struct Rvtab_cursor *cursor = (struct Rvtab_cursor*)cur;
@@ -557,7 +576,8 @@ static int RvtabRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid)
     return SQLITE_OK;
 }
 
-static int RvtabUpdate(sqlite3_vtab *pVtab, int argc,
+static int
+RvtabUpdate(sqlite3_vtab *pVtab, int argc,
     sqlite3_value **argv, sqlite3_int64 *pRowid)
 {
     int i;
@@ -676,7 +696,8 @@ static int RvtabUpdate(sqlite3_vtab *pVtab, int argc,
 
 /* Returns FALSE if the cursor points to a valid row of data, TRUE otherwise.
 ** Called immediately after RvtabNext and RvtabFilter. */
-static int RvtabEof(sqlite3_vtab_cursor *cur)
+static int
+RvtabEof(sqlite3_vtab_cursor *cur)
 {
     int err = 0;
     struct Rvtab_cursor *cursor = (struct Rvtab_cursor*)cur;
@@ -697,7 +718,8 @@ static int RvtabEof(sqlite3_vtab_cursor *cur)
 static int Rvtab_ShadowNameSet_inited = 0;
 static SEXP Rvtab_ShadowNameSet = 0;
 
-static int RvtabShadowName(const char *name)
+static int
+RvtabShadowName(const char *name)
 {
     if (Rvtab_ShadowNameSet == 0)
         return 0;
@@ -749,13 +771,15 @@ static sqlite3_module RvtabModule = {
 };
 
 
-void db_release_module(void *module)
+void
+db_release_module(void *module)
 {
     R_ReleaseObject((SEXP)module);
 }
 
 
-SEXP db_create_module(SEXP Db, SEXP module)
+SEXP
+db_create_module(SEXP Db, SEXP module)
 {
     R_PreserveObject(module);
     sqlite3 *db = (sqlite3 *)R_ExternalPtrAddr(Db);
@@ -765,7 +789,8 @@ SEXP db_create_module(SEXP Db, SEXP module)
 }
 
 
-SEXP db_delete_module(SEXP Db, SEXP module)
+SEXP
+db_delete_module(SEXP Db, SEXP module)
 {
     sqlite3 *db = (sqlite3 *)R_ExternalPtrAddr(Db);
     sqlite3_create_module_v2(db, module_name(module),
@@ -774,7 +799,8 @@ SEXP db_delete_module(SEXP Db, SEXP module)
 }
 
 
-SEXP db_register_shadow_name(SEXP Db, SEXP name)
+SEXP
+db_register_shadow_name(SEXP Db, SEXP name)
 {
     (void)(Db);
     if (!Rvtab_ShadowNameSet_inited)
@@ -788,7 +814,8 @@ SEXP db_register_shadow_name(SEXP Db, SEXP name)
 }
 
 
-SEXP db_unregister_shadow_name(SEXP Db, SEXP name)
+SEXP
+db_unregister_shadow_name(SEXP Db, SEXP name)
 {
     (void)(Db);
     if (Rvtab_ShadowNameSet_inited)

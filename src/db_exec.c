@@ -3,7 +3,8 @@
 #include "sqlite3.h"
 
 
-SEXP db_exec(SEXP Db, SEXP Sql) {
+SEXP
+db_exec(SEXP Db, SEXP Sql) {
 
     sqlite3 *db = (sqlite3 *)R_ExternalPtrAddr(Db);
     const char *sql = CHAR(STRING_ELT(Sql, 0));

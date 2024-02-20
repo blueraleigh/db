@@ -4,7 +4,8 @@
 #include "convert.h"
 
 
-static void db_finalize_stmt(SEXP Cur)
+static void
+db_finalize_stmt(SEXP Cur)
 {
     #ifndef NDEBUG
         Rprintf("running pstmt finalizer\n");
@@ -15,7 +16,8 @@ static void db_finalize_stmt(SEXP Cur)
 }
 
 
-static SEXP process_row(sqlite3_stmt *stmt)
+static SEXP
+process_row(sqlite3_stmt *stmt)
 {
     int i;
     int ncol = sqlite3_column_count(stmt);
@@ -83,7 +85,8 @@ SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
 }
 */
 
-SEXP db_prepare(SEXP Db, SEXP Stmt, SEXP params)
+SEXP
+db_prepare(SEXP Db, SEXP Stmt, SEXP params)
 {
     int i = 0;
     int j;
@@ -151,7 +154,8 @@ SEXP db_fetch(SEXP Cur, SEXP Db)
 }
 */
 
-SEXP db_fetch(SEXP Cur, SEXP Db, SEXP Rf)
+SEXP
+db_fetch(SEXP Cur, SEXP Db, SEXP Rf)
 {
     int i;
     int j;
@@ -329,7 +333,8 @@ SEXP db_fetch(SEXP Cur, SEXP Db, SEXP Rf)
 }
 
 
-SEXP db_lapply(SEXP Db, SEXP Cur, SEXP fun, SEXP arglist)
+SEXP
+db_lapply(SEXP Db, SEXP Cur, SEXP fun, SEXP arglist)
 {
     int i;
     int rc;

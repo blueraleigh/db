@@ -6,17 +6,17 @@ Date: 2020-11-22
 Author: Michael C. Grundler
 Maintainer: Michael C. Grundler <mcgrundler@gmail.com>
 Description: db is an R package providing an interface to the SQLite library
-             and a subset of its API. The package can be used to perform normal
-             database operations but provides additional functionality for
-             creating virtual tables and user-defined SQL functions that
-             invoke R callbacks. It also provides a mechanism for adding
-             documentation to databases in the form of dynamic web pages
-             that can communicate with the database using R's built in
-             HTTP server.
+  and a subset of its API. The package can be used to perform normal
+  database operations but provides additional functionality for
+  creating virtual tables and user-defined SQL functions that
+  invoke R callbacks. It also provides a mechanism for adding
+  documentation to databases in the form of dynamic web pages
+  that can communicate with the database using R's built in
+  HTTP server.
 Depends: R (>= 3.5.0)
 Imports: methods, tools
 NeedsCompilation: yes
-License: CC0
+License: GPL-3
 Collate: db-package.R
   db.R
   db-io.R

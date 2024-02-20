@@ -2,7 +2,8 @@
 #include <Rinternals.h>
 #include "sqlite3.h"
 
-void _db_close(SEXP Db)
+void
+_db_close(SEXP Db)
 {
     #ifndef NDEBUG
         Rprintf("running db finalizer\n");
@@ -13,7 +14,8 @@ void _db_close(SEXP Db)
 }
 
 
-SEXP db_open(SEXP dbfile, SEXP mode)
+SEXP
+db_open(SEXP dbfile, SEXP mode)
 {
     int rc;
     SEXP Db;
@@ -36,7 +38,8 @@ SEXP db_open(SEXP dbfile, SEXP mode)
 }
 
 
-SEXP db_close(SEXP Db)
+SEXP
+db_close(SEXP Db)
 {
     _db_close(Db);
     return Db;
