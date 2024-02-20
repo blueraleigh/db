@@ -72,7 +72,7 @@ db.httpd = function(path, reqquery, reqbody, reqheaders) {
     # this bit modified from opencpu::rhttpd_handler
     METHOD = grep("Request-Method:"
         , strsplit(rawToChar(reqheaders), "\n")[[1]]
-        , ignore.case=TRUE, value=TRUE);
+        , ignore.case=TRUE, value=TRUE)
     METHOD = sub("Request-Method: ?", "", METHOD, ignore.case=TRUE)
     if(!length(METHOD))
         METHOD = ifelse(is.null(reqbody), "GET", "POST")
